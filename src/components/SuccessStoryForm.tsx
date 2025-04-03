@@ -21,7 +21,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const SuccessStoryForm = () => {
+interface SuccessStoryFormProps {
+  onClose?: () => void;
+}
+
+const SuccessStoryForm = ({ onClose }: SuccessStoryFormProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -53,6 +57,11 @@ const SuccessStoryForm = () => {
       // Reset form
       form.reset();
       setIsSubmitting(false);
+      
+      // Close the form if onClose is provided
+      if (onClose) {
+        onClose();
+      }
     }, 1500);
   };
   
@@ -160,13 +169,24 @@ const SuccessStoryForm = () => {
             </div>
             
             <CardFooter className="px-0">
-              <Button 
-                type="submit" 
-                className="w-full md:w-auto bg-kisan-green hover:bg-kisan-green-dark text-white"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Submitting..." : "Submit Your Story"}
-              </Button>
+              <div className="flex gap-2 w-full justify-end">
+                {onClose && (
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={onClose}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button 
+                  type="submit" 
+                  className="bg-kisan-green hover:bg-kisan-green-dark text-white"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit Your Story"}
+                </Button>
+              </div>
             </CardFooter>
           </form>
         </Form>
