@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import CustomFooter from "@/components/CustomFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle } from "lucide-react";
@@ -37,14 +36,12 @@ const DiseaseDetection = () => {
       const file = e.target.files[0];
       setImage(file);
       
-      // Create preview
       const reader = new FileReader();
       reader.onload = () => {
         setPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
       
-      // Reset any previous results
       setResult(null);
     }
   };
@@ -75,15 +72,13 @@ const DiseaseDetection = () => {
     setLoading(true);
     
     try {
-      // Convert image to base64
       const reader = new FileReader();
       reader.readAsDataURL(image);
       
       reader.onload = async () => {
         const base64Image = reader.result as string;
         
-        // Call Gemini API
-        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=" + GEMINI_API_KEY, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -125,11 +120,9 @@ const DiseaseDetection = () => {
           try {
             let jsonText = '';
             
-            // Extract JSON from text
             if (content.parts && content.parts[0] && content.parts[0].text) {
               const text = content.parts[0].text;
               
-              // Try to find JSON in the response
               if (text.includes('{') && text.includes('}')) {
                 jsonText = text.substring(
                   text.indexOf('{'),
@@ -140,7 +133,6 @@ const DiseaseDetection = () => {
               }
             }
             
-            // Parse the JSON data
             const resultData = JSON.parse(jsonText);
             setResult(resultData);
           } catch (error) {
@@ -192,7 +184,6 @@ const DiseaseDetection = () => {
     
     setIsUploading(true);
     
-    // Simulate uploading to server
     setTimeout(() => {
       setIsUploading(false);
       toast({
@@ -503,7 +494,7 @@ const DiseaseDetection = () => {
         </div>
       </main>
       
-      <Footer />
+      <CustomFooter />
     </div>
   );
 };
