@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,21 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom colors for our app
+				kisan: {
+					'green': '#2E7D32',
+					'green-light': '#4CAF50',
+					'green-dark': '#1B5E20',
+					'brown': '#795548',
+					'brown-light': '#A1887F',
+					'brown-dark': '#5D4037',
+					'gold': '#FFC107',
+					'gold-light': '#FFD54F',
+					'gold-dark': '#FFA000',
+					'blue': '#1976D2',
+					'blue-light': '#64B5F6',
+					'blue-dark': '#0D47A1'
 				}
 			},
 			borderRadius: {
@@ -84,11 +100,25 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-slow': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' }
+				},
+				'leaf-sway': {
+					'0%, 100%': { transform: 'rotate(-2deg)' },
+					'50%': { transform: 'rotate(2deg)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-slow': 'pulse-slow 3s infinite ease-in-out',
+				'leaf-sway': 'leaf-sway 3s ease-in-out infinite'
+			},
+			fontFamily: {
+				'poppins': ['Poppins', 'sans-serif'],
+				'mukta': ['Mukta', 'sans-serif']
 			}
 		}
 	},
