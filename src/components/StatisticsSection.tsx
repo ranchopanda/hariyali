@@ -3,10 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
 const statistics = [
-  { value: 50000, label: "Farmers Using App", suffix: "+" },
-  { value: 25, label: "Indian States Covered", suffix: "" },
-  { value: 95, label: "Disease Detection Accuracy", suffix: "%" },
-  { value: 40, label: "Crop Varieties Supported", suffix: "+" }
+  { value: 92, label: "Disease Detection Accuracy", suffix: "%" },
+  { value: 15, label: "Indian States Supported", suffix: "" },
+  { value: 25, label: "Crop Varieties Available", suffix: "+" }
 ];
 
 const StatisticsSection = () => {
@@ -26,11 +25,11 @@ const StatisticsSection = () => {
             Empowering Indian Agriculture
           </h2>
           <p className="text-white/80">
-            Join thousands of farmers across India who are using technology to revolutionize their farming practices.
+            Using technology to revolutionize farming practices across India.
           </p>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
           {statistics.map((stat, index) => (
             <div key={index} className="bg-white/10 rounded-lg p-6 backdrop-blur-sm">
               <CounterAnimation value={stat.value} inView={inView} duration={2000} suffix={stat.suffix} />

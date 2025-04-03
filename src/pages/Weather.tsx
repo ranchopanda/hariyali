@@ -54,6 +54,7 @@ const Weather = () => {
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const OPENWEATHER_API_KEY = "d67c7a5ae631afb152c40991e9046eb4";
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
@@ -71,15 +72,35 @@ const Weather = () => {
     setLoading(true);
     
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         // Success callback
         const { latitude, longitude } = position.coords;
         
-        // Mock reverse geocoding (would use actual API in production)
-        setTimeout(() => {
-          setLocation("New Delhi");
-          fetchWeatherData("New Delhi");
-        }, 1000);
+        try {
+          // Get location name from coordinates using OpenWeather geocoding API
+          const response = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${OPENWEATHER_API_KEY}`);
+          
+          if (!response.ok) {
+            throw new Error('Failed to get location information');
+          }
+          
+          const locData = await response.json();
+          if (locData && locData.length > 0) {
+            const locationName = locData[0].name;
+            setLocation(locationName);
+            fetchWeatherData(locationName, latitude, longitude);
+          } else {
+            throw new Error('Location information not found');
+          }
+        } catch (error) {
+          console.error("Error getting location:", error);
+          setLoading(false);
+          toast({
+            title: "Location Error",
+            description: "Could not determine your location. Please enter it manually.",
+            variant: "destructive",
+          });
+        }
       },
       (error) => {
         // Error callback
@@ -104,94 +125,222 @@ const Weather = () => {
       return;
     }
     
-    fetchWeatherData(location);
+    // Get coordinates from location name
+    fetchCoordinates(location);
   };
 
-  const fetchWeatherData = (loc: string) => {
+  const fetchCoordinates = async (locationName: string) => {
     setLoading(true);
     
-    // Mock API call - replace with actual weather API
-    setTimeout(() => {
-      const mockWeatherData: WeatherData = {
-        location: loc,
-        state: "Delhi",
-        current: {
-          temperature: 32,
-          feels_like: 36,
-          humidity: 65,
-          wind_speed: 12,
-          weather: "Partly Cloudy",
-          weather_icon: "cloud",
-        },
-        forecast: [
-          {
-            date: "2024-04-03",
-            day: "Today",
-            temperature: {
-              min: 26,
-              max: 34,
-            },
-            weather: "Partly Cloudy",
-            weather_icon: "cloud",
-            precipitation: 10,
-          },
-          {
-            date: "2024-04-04",
-            day: "Tomorrow",
-            temperature: {
-              min: 25,
-              max: 33,
-            },
-            weather: "Sunny",
-            weather_icon: "sun",
-            precipitation: 0,
-          },
-          {
-            date: "2024-04-05",
-            day: "Friday",
-            temperature: {
-              min: 26,
-              max: 35,
-            },
-            weather: "Mostly Sunny",
-            weather_icon: "sun",
-            precipitation: 5,
-          },
-          {
-            date: "2024-04-06",
-            day: "Saturday",
-            temperature: {
-              min: 27,
-              max: 36,
-            },
-            weather: "Scattered Thunderstorms",
-            weather_icon: "cloud-rain",
-            precipitation: 40,
-          },
-          {
-            date: "2024-04-07",
-            day: "Sunday",
-            temperature: {
-              min: 25,
-              max: 33,
-            },
-            weather: "Rain Showers",
-            weather_icon: "cloud-rain",
-            precipitation: 60,
-          },
-        ],
-        agricultural_advice: [
-          "High temperatures expected: Ensure adequate irrigation for crops, preferably during early morning or evening.",
-          "Humidity levels favorable for fungal diseases in vegetables. Monitor tomato and chili crops closely.",
-          "Chance of rain on the weekend: Consider postponing any planned pesticide application until after rainfall.",
-          "Strong winds expected: Provide support for tall crops like maize and sugarcane to prevent lodging.",
-          "Expected rainfall good for rice transplantation activities in the coming week."
-        ],
-      };
+    try {
+      // Get coordinates from location name using OpenWeather geocoding API
+      const response = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${locationName},IN&limit=1&appid=${OPENWEATHER_API_KEY}`);
       
-      setWeatherData(mockWeatherData);
+      if (!response.ok) {
+        throw new Error('Failed to get location coordinates');
+      }
+      
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        fetchWeatherData(locationName, lat, lon);
+      } else {
+        throw new Error('Location not found');
+      }
+    } catch (error) {
+      console.error("Error fetching coordinates:", error);
       setLoading(false);
-    }, 1500);
+      toast({
+        title: "Search Error",
+        description: "Could not find weather for this location. Please try another.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchWeatherData = async (loc: string, lat: number, lon: number) => {
+    try {
+      // Get current weather
+      const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+      
+      if (!currentResponse.ok) {
+        throw new Error('Failed to get current weather');
+      }
+      
+      // Get forecast
+      const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+      
+      if (!forecastResponse.ok) {
+        throw new Error('Failed to get forecast');
+      }
+      
+      const currentData = await currentResponse.json();
+      const forecastData = await forecastResponse.json();
+      
+      // Process the data into our format
+      const processedData = processWeatherData(loc, currentData, forecastData);
+      setWeatherData(processedData);
+    } catch (error) {
+      console.error("Error fetching weather data:", error);
+      toast({
+        title: "Weather Error",
+        description: "Could not retrieve weather data. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processWeatherData = (location: string, current: any, forecast: any): WeatherData => {
+    // Process current weather
+    const currentWeather = {
+      temperature: Math.round(current.main.temp),
+      feels_like: Math.round(current.main.feels_like),
+      humidity: current.main.humidity,
+      wind_speed: Math.round(current.wind.speed),
+      weather: current.weather[0].main,
+      weather_icon: getWeatherIconName(current.weather[0].icon)
+    };
+    
+    // Process 5-day forecast (using data points at noon)
+    const processedForecast: any[] = [];
+    const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    // Get unique days from forecast data
+    const days = new Set<string>();
+    const dailyMin: { [key: string]: number } = {};
+    const dailyMax: { [key: string]: number } = {};
+    const dailyWeather: { [key: string]: { icon: string, main: string } } = {};
+    const dailyPrecipitation: { [key: string]: number } = {};
+    
+    // Group forecast data by day
+    forecast.list.forEach((item: any) => {
+      const date = item.dt_txt.split(' ')[0];
+      days.add(date);
+      
+      const temp = item.main.temp;
+      if (!dailyMin[date] || temp < dailyMin[date]) {
+        dailyMin[date] = temp;
+      }
+      if (!dailyMax[date] || temp > dailyMax[date]) {
+        dailyMax[date] = temp;
+      }
+      
+      // For weather description, prioritize data from mid-day
+      const hour = parseInt(item.dt_txt.split(' ')[1].split(':')[0]);
+      if (hour >= 12 && hour <= 15 || !dailyWeather[date]) {
+        dailyWeather[date] = {
+          icon: getWeatherIconName(item.weather[0].icon),
+          main: item.weather[0].main
+        };
+      }
+      
+      // Calculate precipitation probability
+      const pop = item.pop * 100; // Probability of precipitation (0-1)
+      if (!dailyPrecipitation[date] || pop > dailyPrecipitation[date]) {
+        dailyPrecipitation[date] = pop;
+      }
+    });
+    
+    // Create forecast array
+    Array.from(days).slice(0, 5).forEach((date: string) => {
+      const day = new Date(date);
+      processedForecast.push({
+        date: date,
+        day: day.getDay() === new Date().getDay() ? 'Today' : 
+             day.getDay() === (new Date().getDay() + 1) % 7 ? 'Tomorrow' : 
+             dayMap[day.getDay()],
+        temperature: {
+          min: Math.round(dailyMin[date]),
+          max: Math.round(dailyMax[date])
+        },
+        weather: dailyWeather[date].main,
+        weather_icon: dailyWeather[date].icon,
+        precipitation: Math.round(dailyPrecipitation[date])
+      });
+    });
+    
+    // Generate agricultural advice based on weather conditions
+    const agriculturalAdvice = generateAgricultureAdvice(currentWeather, processedForecast);
+    
+    // Determine the state/region based on location response
+    const state = ""; // We could enhance this with region data if needed
+    
+    return {
+      location,
+      state,
+      current: currentWeather,
+      forecast: processedForecast,
+      agricultural_advice: agriculturalAdvice
+    };
+  };
+
+  const getWeatherIconName = (iconCode: string): string => {
+    // Map OpenWeather icon codes to our icon names
+    const iconMap: {[key: string]: string} = {
+      '01d': 'sun', // clear sky day
+      '01n': 'sun',
+      '02d': 'cloud', // few clouds
+      '02n': 'cloud',
+      '03d': 'cloud', // scattered clouds
+      '03n': 'cloud',
+      '04d': 'cloud', // broken clouds
+      '04n': 'cloud',
+      '09d': 'cloud-rain', // shower rain
+      '09n': 'cloud-rain',
+      '10d': 'cloud-rain', // rain
+      '10n': 'cloud-rain',
+      '11d': 'cloud-rain', // thunderstorm
+      '11n': 'cloud-rain',
+      '13d': 'cloud', // snow
+      '13n': 'cloud',
+      '50d': 'cloud', // mist
+      '50n': 'cloud'
+    };
+    
+    return iconMap[iconCode] || 'cloud';
+  };
+
+  const generateAgricultureAdvice = (current: any, forecast: any[]): string[] => {
+    const advice: string[] = [];
+    
+    // Temperature advice
+    if (current.temperature > 35) {
+      advice.push("High temperatures expected: Ensure adequate irrigation for crops, preferably during early morning or evening.");
+    } else if (current.temperature < 15) {
+      advice.push("Cool temperatures expected: Consider protecting temperature-sensitive crops with covers during night time.");
+    }
+    
+    // Humidity advice
+    if (current.humidity > 70) {
+      advice.push("Humidity levels favorable for fungal diseases in vegetables. Monitor crops closely and ensure proper spacing for air circulation.");
+    } else if (current.humidity < 30) {
+      advice.push("Low humidity may increase water requirements. Adjust irrigation schedule accordingly.");
+    }
+    
+    // Rain forecast advice
+    const rainDays = forecast.filter(day => day.precipitation > 40);
+    if (rainDays.length > 0) {
+      advice.push(`Chance of rain in the coming days: Consider postponing any planned pesticide application until after rainfall.`);
+    }
+    
+    // Wind advice
+    if (current.wind_speed > 15) {
+      advice.push("Strong winds expected: Provide support for tall crops like maize and sugarcane to prevent lodging.");
+    }
+    
+    // General seasonal advice
+    const month = new Date().getMonth();
+    if (month >= 5 && month <= 8) { // June to September (monsoon)
+      advice.push("Monsoon season is a good time for planting rice and other rain-fed crops.");
+    } else if (month >= 10 || month <= 1) { // November to February (winter)
+      advice.push("Good season for growing winter crops like wheat, mustard, and vegetables.");
+    } else { // Other months
+      advice.push("Maintain adequate soil moisture during this transition season. Consider mulching to retain moisture.");
+    }
+    
+    return advice;
   };
 
   const getWeatherIcon = (iconName: string) => {

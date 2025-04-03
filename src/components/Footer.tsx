@@ -54,7 +54,7 @@ const Footer = () => {
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold text-kisan-green dark:text-kisan-gold mb-4">Resources</h3>
+            <h3 className="text-lg font-semibold text-kisan-green dark:text-kisan-gold mb-4">Coming Soon</h3>
             <ul className="space-y-2">
               <li>
                 <a href="#" className="text-gray-600 dark:text-gray-300 hover:text-kisan-green dark:hover:text-kisan-gold">
@@ -84,11 +84,11 @@ const Footer = () => {
             <ul className="space-y-2">
               <li className="flex items-center space-x-2">
                 <Phone size={16} className="text-kisan-green dark:text-kisan-gold" />
-                <span className="text-gray-600 dark:text-gray-300">+91 98765 43210</span>
+                <span className="text-gray-600 dark:text-gray-300">+91 7004741371</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Mail size={16} className="text-kisan-green dark:text-kisan-gold" />
-                <span className="text-gray-600 dark:text-gray-300">help@kisankrishi.in</span>
+                <span className="text-gray-600 dark:text-gray-300">stufi339@gmail.com</span>
               </li>
             </ul>
           </div>

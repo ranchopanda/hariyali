@@ -62,6 +62,9 @@ const Header = ({ darkMode, toggleDarkMode }: HeaderProps) => {
                 <Link to="/crop-info" className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
                   Crop Info
                 </Link>
+                <Link to="/success-stories" className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
+                  Success Stories
+                </Link>
                 <Link to="/about" className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
                   About
                 </Link>
@@ -108,6 +111,9 @@ const Header = ({ darkMode, toggleDarkMode }: HeaderProps) => {
               </Link>
               <Link to="/crop-info" className="text-gray-700 dark:text-gray-200 hover:text-kisan-green dark:hover:text-kisan-gold transition-colors">
                 Crop Info
+              </Link>
+              <Link to="/success-stories" className="text-gray-700 dark:text-gray-200 hover:text-kisan-green dark:hover:text-kisan-gold transition-colors">
+                Success Stories
               </Link>
               <Link to="/about" className="text-gray-700 dark:text-gray-200 hover:text-kisan-green dark:hover:text-kisan-gold transition-colors">
                 About
