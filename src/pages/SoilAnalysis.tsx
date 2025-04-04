@@ -1,35 +1,48 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle } from "lucide-react";
+import { 
+  ArrowLeft, Upload, Loader2, Info, 
+  Camera, X, ArrowRight, AlertTriangle,
+  Sprout, Leaf
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CameraCapture from "@/components/CameraCapture";
-import { analyzePlantDisease, imageToBase64, storeAnalysisData, getAnalysisHistory } from "@/utils/geminiAI";
+import { 
+  analyzeSoil, 
+  imageToBase64, 
+  storeAnalysisData, 
+  getAnalysisHistory 
+} from "@/utils/geminiAI";
 
-interface DetectionResult {
-  disease_name: string;
+interface SoilAnalysisResult {
+  soil_type: string;
   confidence: number;
-  description: string;
+  ph_level: string;
+  nutrients: {
+    name: string;
+    level: "Low" | "Medium" | "High";
+    recommendation: string;
+  }[];
   recommendations: string[];
-  treatment: string[];
 }
 
-const DiseaseDetection = () => {
+const SoilAnalysis = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<DetectionResult | null>(null);
+  const [result, setResult] = useState<SoilAnalysisResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const fileInputRef = useState<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
@@ -72,7 +85,7 @@ const DiseaseDetection = () => {
     if (!image) {
       toast({
         title: "No Image Selected",
-        description: "Please upload an image of a plant first.",
+        description: "Please upload an image of the soil first.",
         variant: "destructive",
       });
       return;
@@ -84,19 +97,19 @@ const DiseaseDetection = () => {
       // Convert image to base64
       const base64Image = await imageToBase64(image);
       
-      // Analyze with Gemini (our mock implementation for now)
-      const analysisResult = await analyzePlantDisease(base64Image);
+      // Analyze with Gemini
+      const analysisResult = await analyzeSoil(base64Image);
       
       setResult(analysisResult);
       
       // Store the result
-      await storeAnalysisData(analysisResult, "disease_detection");
+      await storeAnalysisData(analysisResult, "soil_analysis");
       
     } catch (error: any) {
       console.error("Error analyzing image:", error);
       toast({
         title: "Analysis Failed",
-        description: "There was an error analyzing the image. Please try again with a clearer image.",
+        description: "There was an error analyzing the soil image. Please try again with a clearer image.",
         variant: "destructive",
       });
     } finally {
@@ -129,7 +142,7 @@ const DiseaseDetection = () => {
       setIsUploading(false);
       toast({
         title: "Data Submitted",
-        description: "Your plant data has been submitted for expert review. You will receive advice within 24 hours.",
+        description: "Your soil data has been submitted for expert review. You will receive detailed advice within 24 hours.",
       });
     }, 2000);
   };
@@ -150,21 +163,21 @@ const DiseaseDetection = () => {
 
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-6 text-kisan-green dark:text-kisan-gold">
-            AI Plant Disease Detection
+            AI Soil Analysis
           </h1>
           
           <p className="mb-8 text-gray-600 dark:text-gray-300">
-            Upload a clear photo of your plant to identify diseases and get treatment recommendations.
+            Upload a clear photo of your soil to identify soil type and get fertilizer recommendations.
           </p>
           
-          <Tabs defaultValue="detection">
+          <Tabs defaultValue="analysis">
             <TabsList className="mb-8">
-              <TabsTrigger value="detection">Disease Detection</TabsTrigger>
-              <TabsTrigger value="history">Detection History</TabsTrigger>
+              <TabsTrigger value="analysis">Soil Analysis</TabsTrigger>
+              <TabsTrigger value="history">Analysis History</TabsTrigger>
               <TabsTrigger value="guide">How to Use</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="detection">
+            <TabsContent value="analysis">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   {showCamera ? (
@@ -176,23 +189,23 @@ const DiseaseDetection = () => {
                     <Card>
                       <CardContent className="p-6">
                         <div className="mb-6">
-                          <h3 className="text-lg font-semibold mb-2">Upload Plant Image</h3>
+                          <h3 className="text-lg font-semibold mb-2">Upload Soil Image</h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Take a clear photo of the affected plant part (leaves, stem, or fruit)
+                            Take a clear photo of your soil sample or field soil
                           </p>
                         </div>
                         
                         {!preview ? (
                           <div className="space-y-4">
                             <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 text-center">
-                              <Upload className="h-10 w-10 mx-auto mb-4 text-gray-400" />
+                              <Sprout className="h-10 w-10 mx-auto mb-4 text-gray-400" />
                               <p className="text-gray-500 dark:text-gray-400 mb-4">
-                                Drag and drop an image here or click to browse
+                                Drag and drop a soil image here or click to browse
                               </p>
                               <div className="flex justify-center gap-3">
                                 <Button
                                   className="bg-kisan-green hover:bg-kisan-green-dark text-white"
-                                  onClick={() => document.getElementById('image-upload')?.click()}
+                                  onClick={() => fileInputRef.current?.click()}
                                 >
                                   <Upload className="mr-2 h-4 w-4" />
                                   Browse Files
@@ -206,12 +219,11 @@ const DiseaseDetection = () => {
                                 </Button>
                               </div>
                               <input
-                                id="image-upload"
+                                ref={fileInputRef}
                                 type="file"
                                 accept="image/*"
                                 onChange={handleImageUpload}
                                 className="hidden"
-                                ref={node => fileInputRef.current = node}
                               />
                             </div>
                           </div>
@@ -219,7 +231,7 @@ const DiseaseDetection = () => {
                           <div className="relative">
                             <img 
                               src={preview} 
-                              alt="Plant preview" 
+                              alt="Soil preview" 
                               className="w-full rounded-lg object-cover max-h-[300px]" 
                             />
                             <Button
@@ -244,7 +256,7 @@ const DiseaseDetection = () => {
                                   </>
                                 ) : (
                                   <>
-                                    Analyze Image
+                                    Analyze Soil
                                   </>
                                 )}
                               </Button>
@@ -262,10 +274,10 @@ const DiseaseDetection = () => {
                         <div className="space-y-2">
                           <h3 className="text-sm font-medium">For best results:</h3>
                           <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-1 list-disc pl-5">
-                            <li>Take close-up photos in good lighting</li>
-                            <li>Include multiple affected areas</li>
-                            <li>Avoid shadows and blurry images</li>
-                            <li>Position camera parallel to the leaf surface</li>
+                            <li>Collect soil from 3-6 inches below the surface</li>
+                            <li>Take photos in good natural lighting</li>
+                            <li>Include a clear view of soil texture and color</li>
+                            <li>If possible, include a ruler or coin for scale</li>
                           </ul>
                         </div>
                       </div>
@@ -279,7 +291,7 @@ const DiseaseDetection = () => {
                       <CardContent className="p-6">
                         <div className="mb-6">
                           <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold">Detection Results</h3>
+                            <h3 className="text-lg font-semibold">Soil Analysis Results</h3>
                             <div className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">
                               Confidence: {result.confidence}%
                             </div>
@@ -287,39 +299,47 @@ const DiseaseDetection = () => {
                           
                           <div className="mt-4 p-3 rounded-lg bg-kisan-green/10 dark:bg-kisan-green/20">
                             <h4 className="font-semibold text-kisan-green dark:text-kisan-gold">
-                              {result.disease_name}
+                              {result.soil_type}
                             </h4>
+                            <p className="text-sm mt-1">pH Level: {result.ph_level}</p>
                           </div>
                         </div>
                         
                         <div className="space-y-4">
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                              Description
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                              Nutrient Analysis
                             </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {result.description}
-                            </p>
+                            <div className="space-y-2">
+                              {result.nutrients.map((nutrient, index) => (
+                                <div key={index} className="border rounded-md p-3">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-medium">{nutrient.name}</span>
+                                    <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                      nutrient.level === 'High' 
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                                        : nutrient.level === 'Medium'
+                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                    }`}>
+                                      {nutrient.level}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    {nutrient.recommendation}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                           
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                               Recommendations
                             </h4>
                             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
                               {result.recommendations.map((recommendation, index) => (
                                 <li key={index}>{recommendation}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                              Treatment Options
-                            </h4>
-                            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
-                              {result.treatment.map((treatment, index) => (
-                                <li key={index}>{treatment}</li>
                               ))}
                             </ul>
                           </div>
@@ -329,7 +349,7 @@ const DiseaseDetection = () => {
                           <div className="flex items-start mb-4">
                             <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              This is an AI-generated analysis. For severe cases, consult with an agricultural expert.
+                              This is an AI-generated analysis. For precise results, consider laboratory soil testing.
                             </p>
                           </div>
                           
@@ -358,15 +378,15 @@ const DiseaseDetection = () => {
                       <Info className="h-10 w-10 mb-4 text-gray-400" />
                       <h3 className="text-lg font-medium mb-2">Analysis Pending</h3>
                       <p className="text-gray-500 dark:text-gray-400 mb-6">
-                        Click "Analyze Image" to detect plant diseases and get recommendations.
+                        Click "Analyze Soil" to detect soil type and get fertilizer recommendations.
                       </p>
                     </div>
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                      <Info className="h-10 w-10 mb-4 text-gray-400" />
-                      <h3 className="text-lg font-medium mb-2">Detection Results</h3>
+                      <Leaf className="h-10 w-10 mb-4 text-gray-400" />
+                      <h3 className="text-lg font-medium mb-2">Soil Analysis Results</h3>
                       <p className="text-gray-500 dark:text-gray-400 mb-6">
-                        Upload a plant image to see disease detection results and treatment recommendations.
+                        Upload a soil image to see analysis results and fertilizer recommendations.
                       </p>
                     </div>
                   )}
@@ -377,25 +397,25 @@ const DiseaseDetection = () => {
             <TabsContent value="history">
               <Card>
                 <CardContent className="p-6">
-                  {getAnalysisHistory("disease_detection").length > 0 ? (
+                  {getAnalysisHistory("soil_analysis").length > 0 ? (
                     <div className="space-y-6">
-                      <h3 className="text-lg font-semibold">Previous Detections</h3>
+                      <h3 className="text-lg font-semibold">Previous Soil Analyses</h3>
                       
                       <div className="space-y-4">
-                        {getAnalysisHistory("disease_detection").map((item: any) => (
+                        {getAnalysisHistory("soil_analysis").map((item: any) => (
                           <div 
                             key={item.id}
                             className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <p className="font-medium">{item.disease_name}</p>
+                                <p className="font-medium">{item.soil_type}</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {new Date(item.timestamp).toLocaleDateString()}
+                                  pH: {item.ph_level} • {new Date(item.timestamp).toLocaleDateString()}
                                 </p>
                               </div>
-                              <div className="text-sm px-2 py-1 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 rounded">
-                                {item.confidence}% confidence
+                              <div className="text-sm px-2 py-1 bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">
+                                {item.confidence}% match
                               </div>
                             </div>
                           </div>
@@ -404,10 +424,10 @@ const DiseaseDetection = () => {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <Info className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-medium mb-2">Detection History</h3>
+                      <Sprout className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-lg font-medium mb-2">No Soil Analyses Yet</h3>
                       <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                        Your previous detection results will appear here once you analyze some plants.
+                        Your previous soil analysis results will appear here once you perform an analysis.
                       </p>
                     </div>
                   )}
@@ -418,13 +438,19 @@ const DiseaseDetection = () => {
             <TabsContent value="guide">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">How to Use Plant Disease Detection</h3>
+                  <h3 className="text-lg font-semibold mb-4">How to Use Soil Analysis</h3>
                   
                   <ol className="space-y-4 list-decimal pl-5">
                     <li className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">Collect soil sample</span>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Dig 3-6 inches deep and collect a handful of soil from your field.
+                      </p>
+                    </li>
+                    <li className="text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Take a clear photo</span>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Ensure good lighting and focus on the affected plant part (leaves, stems, fruits).
+                        Place the soil on a white background in good lighting and take a photo.
                       </p>
                     </li>
                     <li className="text-gray-700 dark:text-gray-300">
@@ -434,21 +460,15 @@ const DiseaseDetection = () => {
                       </p>
                     </li>
                     <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Analyze the image</span>
+                      <span className="font-medium">Analyze the soil</span>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Our AI system powered by Gemini 1.5 Flash will analyze your plant image and identify potential diseases.
+                        Our AI system will analyze your soil image and identify soil type and properties.
                       </p>
                     </li>
                     <li className="text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Review results</span>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        You'll receive information about the detected disease, including description and treatment options.
-                      </p>
-                    </li>
-                    <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Get expert advice (optional)</span>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Submit your results for review by agricultural experts for more detailed advice.
+                        You'll receive information about soil type, pH level, nutrients, and fertilizer recommendations.
                       </p>
                     </li>
                   </ol>
@@ -456,9 +476,9 @@ const DiseaseDetection = () => {
                   <div className="mt-6 p-4 bg-kisan-green/10 dark:bg-kisan-green/20 rounded-lg">
                     <h4 className="font-semibold text-kisan-green dark:text-kisan-gold mb-2">Where is data stored?</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      All your detection data is stored locally on your device for privacy. The history 
-                      tab shows your previous detections. In a future update, you'll be able to sync 
-                      data across devices with a Kisan Dost account.
+                      All your soil analysis data is stored locally on your device for privacy. The history 
+                      tab shows your previous analyses. In future updates, data will be optionally synced 
+                      across devices with a Kisan Dost account.
                     </p>
                   </div>
                 </CardContent>
@@ -473,4 +493,4 @@ const DiseaseDetection = () => {
   );
 };
 
-export default DiseaseDetection;
+export default SoilAnalysis;

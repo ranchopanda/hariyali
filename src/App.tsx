@@ -11,6 +11,8 @@ import CropInfo from "./pages/CropInfo";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import SuccessStories from "./pages/SuccessStories";
+import YieldPrediction from "./pages/YieldPrediction";
+import SoilAnalysis from "./pages/SoilAnalysis";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,8 @@ const App = () => (
           <Route path="/crop-info" element={<CropInfo />} />
           <Route path="/about" element={<About />} />
           <Route path="/success-stories" element={<SuccessStories />} />
+          <Route path="/yield-prediction" element={<YieldPrediction />} />
+          <Route path="/soil-analysis" element={<SoilAnalysis />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

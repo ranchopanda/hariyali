@@ -44,12 +44,14 @@ const FeaturesSection = () => {
             title="Yield Prediction"
             description="AI-powered prediction of crop yields based on soil, weather, and cultivation practices."
             icon={<LineChart className="h-7 w-7 text-kisan-green dark:text-kisan-gold" />}
+            onClick={() => navigate('/yield-prediction')}
           />
           
           <FeatureCard
             title="Soil Analysis"
-            description="Recommendations for soil health improvement and appropriate fertilizers."
+            description="Recommendations for soil health improvement and appropriate fertilizers by capturing soil images."
             icon={<Sprout className="h-7 w-7 text-kisan-green dark:text-kisan-gold" />}
+            onClick={() => navigate('/soil-analysis')}
           />
           
           <FeatureCard
