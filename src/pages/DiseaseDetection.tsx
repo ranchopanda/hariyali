@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -72,85 +73,86 @@ const DiseaseDetection = () => {
     setLoading(true);
     
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(image);
+      // Convert image to base64
+      const base64Image = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(image);
+      });
       
-      reader.onload = async () => {
-        const base64Image = reader.result as string;
-        
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: "Analyze this crop/plant image for diseases. Provide the following information: 1) Disease name, 2) Confidence percentage (between 60-95%), 3) Brief description of the disease, 4) Three recommendations for the farmer, and 5) Two treatment options. If you cannot identify a disease, respond with 'Healthy Plant' and provide general care tips. Format your response as JSON with keys: disease_name, confidence, description, recommendations (array), treatment (array)."
-                  },
-                  {
-                    inline_data: {
-                      mime_type: "image/jpeg",
-                      data: base64Image.split(",")[1]
-                    }
+      // Extract the base64 data part (remove the "data:image/jpeg;base64," prefix)
+      const base64Data = base64Image.split(',')[1];
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: "Analyze this crop/plant image for diseases. Provide the following information: 1) Disease name, 2) Confidence percentage (between 60-95%), 3) Brief description of the disease, 4) Three recommendations for the farmer, and 5) Two treatment options. If you cannot identify a disease, respond with 'Healthy Plant' and provide general care tips. Format your response as JSON with keys: disease_name, confidence, description, recommendations (array), treatment (array)."
+                },
+                {
+                  inline_data: {
+                    mime_type: "image/jpeg",
+                    data: base64Data
                   }
-                ]
-              }
-            ],
-            generation_config: {
-              temperature: 0.4,
-              top_p: 1,
-              top_k: 32,
-              max_output_tokens: 1024,
+                }
+              ]
             }
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to analyze image');
-        }
-        
-        const data = await response.json();
-        
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-          const content = data.candidates[0].content;
-          
-          try {
-            let jsonText = '';
-            
-            if (content.parts && content.parts[0] && content.parts[0].text) {
-              const text = content.parts[0].text;
-              
-              if (text.includes('{') && text.includes('}')) {
-                jsonText = text.substring(
-                  text.indexOf('{'),
-                  text.lastIndexOf('}') + 1
-                );
-              } else {
-                throw new Error('JSON structure not found in the response');
-              }
-            }
-            
-            const resultData = JSON.parse(jsonText);
-            setResult(resultData);
-          } catch (error) {
-            console.error("Error parsing Gemini response:", error);
-            toast({
-              title: "Analysis Error",
-              description: "Could not parse the response from the disease detection API.",
-              variant: "destructive",
-            });
+          ],
+          generation_config: {
+            temperature: 0.4,
+            top_p: 1,
+            top_k: 32,
+            max_output_tokens: 1024,
           }
-        } else {
-          throw new Error('Invalid response format');
-        }
-      };
+        })
+      });
       
-      reader.onerror = () => {
-        throw new Error('Failed to read image file');
-      };
+      if (!response.ok) {
+        throw new Error('Failed to analyze image');
+      }
+      
+      const data = await response.json();
+      
+      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+        const content = data.candidates[0].content;
+        
+        try {
+          let jsonText = '';
+          
+          if (content.parts && content.parts[0] && content.parts[0].text) {
+            const text = content.parts[0].text;
+            
+            if (text.includes('{') && text.includes('}')) {
+              jsonText = text.substring(
+                text.indexOf('{'),
+                text.lastIndexOf('}') + 1
+              );
+            } else {
+              console.error("JSON structure not found in response:", text);
+              throw new Error('JSON structure not found in the response');
+            }
+          }
+          
+          const resultData = JSON.parse(jsonText);
+          setResult(resultData);
+        } catch (error) {
+          console.error("Error parsing Gemini response:", error);
+          toast({
+            title: "Analysis Error",
+            description: "Could not parse the response from the disease detection API.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
       console.error("Error analyzing image:", error);
       toast({
