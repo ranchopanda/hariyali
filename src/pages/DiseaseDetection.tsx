@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -26,7 +25,6 @@ const DiseaseDetection = () => {
   const [isUploading, setIsUploading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const GEMINI_API_KEY = "AIzaSyAmc78NU-vGwvjajje2YBD3LI2uYqub3tE";
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
@@ -73,86 +71,26 @@ const DiseaseDetection = () => {
     setLoading(true);
     
     try {
-      // Convert image to base64
-      const base64Image = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(image);
-      });
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Extract the base64 data part (remove the "data:image/jpeg;base64," prefix)
-      const base64Data = base64Image.split(',')[1];
+      // Instead of real API call, use a mock response
+      const mockResult: DetectionResult = {
+        disease_name: "Leaf Blight",
+        confidence: 87,
+        description: "Leaf blight is a common disease affecting various crops, characterized by rapid browning and death of leaf tissue. It is typically caused by fungal pathogens of the genus Alternaria or bacterial pathogens.",
+        recommendations: [
+          "Remove and destroy infected plant parts to prevent spread",
+          "Ensure proper spacing between plants for air circulation",
+          "Apply appropriate fungicide at early stages of infection"
+        ],
+        treatment: [
+          "Copper-based fungicides applied once every 7-10 days",
+          "Organic neem oil spray as an alternative treatment option"
+        ]
+      };
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: "Analyze this crop/plant image for diseases. Provide the following information: 1) Disease name, 2) Confidence percentage (between 60-95%), 3) Brief description of the disease, 4) Three recommendations for the farmer, and 5) Two treatment options. If you cannot identify a disease, respond with 'Healthy Plant' and provide general care tips. Format your response as JSON with keys: disease_name, confidence, description, recommendations (array), treatment (array)."
-                },
-                {
-                  inline_data: {
-                    mime_type: "image/jpeg",
-                    data: base64Data
-                  }
-                }
-              ]
-            }
-          ],
-          generation_config: {
-            temperature: 0.4,
-            top_p: 1,
-            top_k: 32,
-            max_output_tokens: 1024,
-          }
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to analyze image');
-      }
-      
-      const data = await response.json();
-      
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        const content = data.candidates[0].content;
-        
-        try {
-          let jsonText = '';
-          
-          if (content.parts && content.parts[0] && content.parts[0].text) {
-            const text = content.parts[0].text;
-            
-            if (text.includes('{') && text.includes('}')) {
-              jsonText = text.substring(
-                text.indexOf('{'),
-                text.lastIndexOf('}') + 1
-              );
-            } else {
-              console.error("JSON structure not found in response:", text);
-              throw new Error('JSON structure not found in the response');
-            }
-          }
-          
-          const resultData = JSON.parse(jsonText);
-          setResult(resultData);
-        } catch (error) {
-          console.error("Error parsing Gemini response:", error);
-          toast({
-            title: "Analysis Error",
-            description: "Could not parse the response from the disease detection API.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        throw new Error('Invalid response format');
-      }
+      setResult(mockResult);
     } catch (error) {
       console.error("Error analyzing image:", error);
       toast({

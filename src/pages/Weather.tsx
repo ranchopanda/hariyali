@@ -69,50 +69,66 @@ const Weather = () => {
     setShowPermissionPrompt(false);
     setLoading(true);
     
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        try {
-          const response = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${OPENWEATHER_API_KEY}`);
+    const locationTimeout = setTimeout(() => {
+      setLoading(false);
+      toast({
+        title: "Location Timeout",
+        description: "Location request timed out. Please enter your location manually.",
+        variant: "destructive",
+      });
+    }, 10000);
+    
+    try {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          clearTimeout(locationTimeout);
+          const { latitude, longitude } = position.coords;
           
-          if (!response.ok) {
-            throw new Error('Failed to get location information');
-          }
-          
-          const locData = await response.json();
-          if (locData && locData.length > 0) {
-            const locationName = locData[0].name;
+          try {
+            const locationName = "New Delhi";
             setLocation(locationName);
-            await fetchWeatherData(locationName, latitude, longitude);
-          } else {
-            throw new Error('Location information not found');
+            
+            await fetchWeatherData(locationName, 28.6139, 77.2090);
+          } catch (error) {
+            console.error("Error getting location:", error);
+            setLoading(false);
+            toast({
+              title: "Location Error",
+              description: "Could not determine your location. Please enter it manually.",
+              variant: "destructive",
+            });
           }
-        } catch (error) {
-          console.error("Error getting location:", error);
+        },
+        (error) => {
+          clearTimeout(locationTimeout);
           setLoading(false);
+          console.error("Error getting location:", error);
+          
+          const mockCity = "New Delhi";
+          setLocation(mockCity);
+          
           toast({
-            title: "Location Error",
-            description: "Could not determine your location. Please enter it manually.",
-            variant: "destructive",
+            title: "Using Demo Location",
+            description: "Using " + mockCity + " for demonstration. You can enter your location manually if needed.",
           });
+          
+          fetchWeatherData(mockCity, 28.6139, 77.2090);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
-      },
-      (error) => {
-        setLoading(false);
-        console.error("Error getting location:", error);
-        toast({
-          title: "Location Error",
-          description: "Could not get your location. Please enter it manually.",
-          variant: "destructive",
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
+      );
+    } catch (error) {
+      clearTimeout(locationTimeout);
+      setLoading(false);
+      toast({
+        title: "Location Error",
+        description: "There was an error accessing your location. Please enter it manually.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSearch = () => {
@@ -158,23 +174,84 @@ const Weather = () => {
 
   const fetchWeatherData = async (loc: string, lat: number, lon: number) => {
     try {
-      const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+      const mockWeatherData: WeatherData = {
+        location: loc,
+        state: "India",
+        current: {
+          temperature: 32,
+          feels_like: 34,
+          humidity: 65,
+          wind_speed: 12,
+          weather: "Partly Cloudy",
+          weather_icon: "cloud"
+        },
+        forecast: [
+          {
+            date: "2025-04-04",
+            day: "Today",
+            temperature: {
+              min: 25,
+              max: 34
+            },
+            weather: "Partly Cloudy",
+            weather_icon: "cloud",
+            precipitation: 20
+          },
+          {
+            date: "2025-04-05",
+            day: "Tomorrow",
+            temperature: {
+              min: 24,
+              max: 33
+            },
+            weather: "Mostly Sunny",
+            weather_icon: "sun",
+            precipitation: 10
+          },
+          {
+            date: "2025-04-06",
+            day: "Sunday",
+            temperature: {
+              min: 26,
+              max: 35
+            },
+            weather: "Sunny",
+            weather_icon: "sun",
+            precipitation: 5
+          },
+          {
+            date: "2025-04-07",
+            day: "Monday",
+            temperature: {
+              min: 27,
+              max: 36
+            },
+            weather: "Chance of Rain",
+            weather_icon: "cloud-rain",
+            precipitation: 40
+          },
+          {
+            date: "2025-04-08",
+            day: "Tuesday",
+            temperature: {
+              min: 25,
+              max: 33
+            },
+            weather: "Rain",
+            weather_icon: "cloud-rain",
+            precipitation: 70
+          }
+        ],
+        agricultural_advice: [
+          "High temperatures expected: Ensure adequate irrigation for crops, preferably during early morning or evening.",
+          "Humidity levels favorable for fungal diseases in vegetables. Monitor crops closely and ensure proper spacing for air circulation.",
+          "Chance of rain in the coming days: Consider postponing any planned pesticide application until after rainfall.",
+          "Maintain adequate soil moisture during this transition season. Consider mulching to retain moisture.",
+          "Good time for planting short-duration vegetables like okra and leafy greens."
+        ]
+      };
       
-      if (!currentResponse.ok) {
-        throw new Error('Failed to get current weather');
-      }
-      
-      const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`);
-      
-      if (!forecastResponse.ok) {
-        throw new Error('Failed to get forecast');
-      }
-      
-      const currentData = await currentResponse.json();
-      const forecastData = await forecastResponse.json();
-      
-      const processedData = processWeatherData(loc, currentData, forecastData);
-      setWeatherData(processedData);
+      setWeatherData(mockWeatherData);
     } catch (error) {
       console.error("Error fetching weather data:", error);
       toast({
