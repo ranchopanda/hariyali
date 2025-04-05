@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -81,8 +82,10 @@ const DiseaseDetection = () => {
     
     try {
       const base64Image = await imageToBase64(image);
+      console.log("Analyzing image with base64 length:", base64Image.length);
       
       const analysisResult = await analyzePlantDisease(base64Image);
+      console.log("Analysis result:", analysisResult.disease_name, "with confidence:", analysisResult.confidence);
       
       setResult(analysisResult);
       

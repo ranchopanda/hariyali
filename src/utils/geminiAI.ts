@@ -1,4 +1,3 @@
-
 // Gemini API integration for image analysis
 export interface AnalysisResult {
   result: string;
@@ -202,11 +201,16 @@ const mockGeminiAnalysis = async (
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  // To create somewhat realistic results, use the image data hash as a seed
-  const hash = imageBase64.length > 50 ? 
-    imageBase64.slice(0, 10).split("").reduce((a, b) => a + b.charCodeAt(0), 0) : 
-    Date.now() % 1000;
-
+  // Use part of the image data as a seed for randomization
+  // We'll use a combination of timestamp and image data to ensure variability between uploads
+  const timestamp = Date.now();
+  const hashBase = imageBase64.substring(0, 100);
+  const hashSum = Array.from(hashBase).reduce((sum, char, index) => 
+    sum + char.charCodeAt(0) * (index + 1), 0);
+  
+  // Combine timestamp and image data for a more unique seed
+  const seed = (hashSum + timestamp) % 1000;
+  
   if (analysisType === "plant_disease") {
     const diseases = [
       {
@@ -244,14 +248,43 @@ const mockGeminiAnalysis = async (
           "Remove severely infected leaves",
           "Avoid overhead watering to reduce humidity"
         ]
+      },
+      {
+        name: "Brown Spot",
+        description: "A fungal disease that affects rice leaves and grains, characterized by brown lesions with yellow halos. It can reduce grain quality and yield.",
+        recommendations: [
+          "Apply fungicides containing propiconazole or tebuconazole",
+          "Use balanced fertilization, especially potassium",
+          "Avoid water stress conditions",
+          "Remove infected plant debris from the field",
+          "Use certified disease-free seeds",
+          "Implement proper water management practices"
+        ]
+      },
+      {
+        name: "Leaf Rust",
+        description: "A fungal disease that affects wheat and other cereal crops, appearing as orange-brown pustules on leaves. It can significantly reduce crop yield.",
+        recommendations: [
+          "Apply triazole or strobilurin fungicides",
+          "Plant rust-resistant varieties when available",
+          "Early planting to avoid peak rust season",
+          "Implement crop rotation with non-host plants",
+          "Monitor fields regularly for early detection",
+          "Remove alternate hosts like barberry plants from field vicinity"
+        ]
       }
     ];
 
-    const selectedDisease = diseases[hash % diseases.length];
+    // Use the seed to select a disease - ensuring different images get different diseases
+    const diseaseIndex = seed % diseases.length;
+    const selectedDisease = diseases[diseaseIndex];
+    
+    // Generate a confidence score that varies
+    const confidence = 65 + (seed % 30);
     
     return {
       result: selectedDisease.name,
-      confidence: 75 + (hash % 20),
+      confidence: confidence,
       description: selectedDisease.description,
       recommendations: selectedDisease.recommendations
     };
@@ -292,11 +325,12 @@ const mockGeminiAnalysis = async (
       }
     ];
 
-    const selectedSoil = soilTypes[hash % soilTypes.length];
+    const soilIndex = seed % soilTypes.length;
+    const selectedSoil = soilTypes[soilIndex];
     
     return {
       result: selectedSoil.name,
-      confidence: 80 + (hash % 15),
+      confidence: 75 + (seed % 20),
       description: selectedSoil.description,
       recommendations: selectedSoil.recommendations
     };
