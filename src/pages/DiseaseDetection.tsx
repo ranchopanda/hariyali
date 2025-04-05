@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
@@ -29,7 +28,7 @@ const DiseaseDetection = () => {
   const [showCamera, setShowCamera] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const fileInputRef = useState<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
@@ -81,15 +80,12 @@ const DiseaseDetection = () => {
     setLoading(true);
     
     try {
-      // Convert image to base64
       const base64Image = await imageToBase64(image);
       
-      // Analyze with Gemini (our mock implementation for now)
       const analysisResult = await analyzePlantDisease(base64Image);
       
       setResult(analysisResult);
       
-      // Store the result
       await storeAnalysisData(analysisResult, "disease_detection");
       
     } catch (error: any) {
@@ -211,7 +207,7 @@ const DiseaseDetection = () => {
                                 accept="image/*"
                                 onChange={handleImageUpload}
                                 className="hidden"
-                                ref={node => fileInputRef.current = node}
+                                ref={fileInputRef}
                               />
                             </div>
                           </div>
