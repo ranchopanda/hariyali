@@ -5,12 +5,14 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle, Leaf, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CameraCapture from "@/components/CameraCapture";
 import { analyzePlantDisease, imageToBase64, storeAnalysisData, getAnalysisHistory } from "@/utils/geminiAI";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 interface DetectionResult {
   disease_name: string;
@@ -98,6 +100,12 @@ const DiseaseDetection = () => {
       
       await storeAnalysisData(analysisResult, "disease_detection");
       
+      toast({
+        title: "Analysis Complete",
+        description: `Detected: ${analysisResult.disease_name}`,
+        variant: "default",
+      });
+      
     } catch (error: unknown) {
       console.error("Error analyzing image:", error);
       toast({
@@ -140,14 +148,32 @@ const DiseaseDetection = () => {
     }, 2000);
   };
 
+  const renderConfidenceBadge = (confidence: number) => {
+    let color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    
+    if (confidence >= 90) {
+      color = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    } else if (confidence >= 70) {
+      color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+    } else if (confidence >= 50) {
+      color = "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+    }
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${color}`}>
+        {confidence}% confidence
+      </span>
+    );
+  };
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       
       <main className="flex-grow container mx-auto px-4 py-8">
         <Button 
           variant="ghost" 
-          className="mb-6 pl-0" 
+          className="mb-6 pl-0 hover:bg-transparent hover:text-kisan-green dark:hover:text-kisan-gold" 
           onClick={() => navigate(-1)}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -155,47 +181,76 @@ const DiseaseDetection = () => {
         </Button>
 
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6 text-kisan-green dark:text-kisan-gold">
-            AI Plant Disease Detection
-          </h1>
+          <div className="flex items-center mb-6 space-x-3">
+            <div className="p-2 rounded-full bg-kisan-green/10 dark:bg-kisan-green/20">
+              <Leaf className="h-6 w-6 text-kisan-green dark:text-kisan-gold" />
+            </div>
+            <h1 className="text-3xl font-bold text-kisan-green dark:text-kisan-gold">
+              AI Plant Disease Detection
+            </h1>
+          </div>
           
-          <p className="mb-8 text-gray-600 dark:text-gray-300">
-            Upload a clear photo of your plant to identify diseases and get treatment recommendations.
-          </p>
+          <Card className="mb-8 border-none shadow-md bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <p className="text-gray-600 dark:text-gray-300">
+                Upload a clear photo of your plant to identify diseases and get treatment recommendations.
+                For best results, take close-up photos of affected leaves, stems, or fruits in good lighting.
+              </p>
+            </CardContent>
+          </Card>
           
-          <Tabs defaultValue="detection">
-            <TabsList className="mb-8">
-              <TabsTrigger value="detection">Disease Detection</TabsTrigger>
-              <TabsTrigger value="history">Detection History</TabsTrigger>
-              <TabsTrigger value="guide">How to Use</TabsTrigger>
+          <Tabs defaultValue="detection" className="space-y-6">
+            <TabsList className="w-full p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <TabsTrigger value="detection" className="flex-1 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+                Disease Detection
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex-1 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+                Detection History
+              </TabsTrigger>
+              <TabsTrigger value="guide" className="flex-1 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+                How to Use
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="detection">
+            <TabsContent value="detection" className="mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   {showCamera ? (
-                    <CameraCapture 
-                      onCapture={handleCameraCapture}
-                      onClose={() => setShowCamera(false)}
-                    />
+                    <Card className="overflow-hidden border-none shadow-lg">
+                      <CardHeader className="bg-kisan-green text-white dark:bg-kisan-green-dark p-4">
+                        <CardTitle className="text-lg flex items-center">
+                          <Camera className="mr-2 h-5 w-5" />
+                          Take a Photo
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <CameraCapture 
+                          onCapture={handleCameraCapture}
+                          onClose={() => setShowCamera(false)}
+                        />
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <Card>
+                    <Card className="overflow-hidden border-none shadow-lg">
+                      <CardHeader className="bg-kisan-green text-white dark:bg-kisan-green-dark p-4">
+                        <CardTitle className="text-lg flex items-center">
+                          <Upload className="mr-2 h-5 w-5" />
+                          Upload Plant Image
+                        </CardTitle>
+                        <CardDescription className="text-white/80 mt-1">
+                          Take a clear photo of the affected plant part
+                        </CardDescription>
+                      </CardHeader>
+                      
                       <CardContent className="p-6">
-                        <div className="mb-6">
-                          <h3 className="text-lg font-semibold mb-2">Upload Plant Image</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Take a clear photo of the affected plant part (leaves, stem, or fruit)
-                          </p>
-                        </div>
-                        
                         {!preview ? (
                           <div className="space-y-4">
-                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 text-center">
-                              <Upload className="h-10 w-10 mx-auto mb-4 text-gray-400" />
-                              <p className="text-gray-500 dark:text-gray-400 mb-4">
+                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 text-center bg-gray-50 dark:bg-gray-800/50">
+                              <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400 animate-pulse" />
+                              <p className="text-gray-500 dark:text-gray-400 mb-6">
                                 Drag and drop an image here or click to browse
                               </p>
-                              <div className="flex justify-center gap-3">
+                              <div className="flex flex-col sm:flex-row justify-center gap-3">
                                 <Button
                                   className="bg-kisan-green hover:bg-kisan-green-dark text-white"
                                   onClick={() => document.getElementById('image-upload')?.click()}
@@ -205,6 +260,7 @@ const DiseaseDetection = () => {
                                 </Button>
                                 <Button
                                   variant="outline"
+                                  className="border-kisan-green text-kisan-green hover:bg-kisan-green/10 dark:border-kisan-gold dark:text-kisan-gold dark:hover:bg-kisan-gold/10"
                                   onClick={() => setShowCamera(true)}
                                 >
                                   <Camera className="mr-2 h-4 w-4" />
@@ -223,15 +279,17 @@ const DiseaseDetection = () => {
                           </div>
                         ) : (
                           <div className="relative">
-                            <img 
-                              src={preview} 
-                              alt="Plant preview" 
-                              className="w-full rounded-lg object-cover max-h-[300px]" 
-                            />
+                            <div className="overflow-hidden rounded-lg ring-2 ring-kisan-green/20 shadow-inner">
+                              <img 
+                                src={preview} 
+                                alt="Plant preview" 
+                                className="w-full object-cover max-h-[300px]" 
+                              />
+                            </div>
                             <Button
                               size="icon"
                               variant="outline"
-                              className="absolute top-2 right-2 bg-white dark:bg-gray-800 rounded-full"
+                              className="absolute top-2 right-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full hover:bg-white hover:text-red-500 dark:hover:bg-gray-800 dark:hover:text-red-500"
                               onClick={clearImage}
                             >
                               <X className="h-4 w-4" />
@@ -239,18 +297,19 @@ const DiseaseDetection = () => {
                             
                             <div className="mt-4 flex justify-center">
                               <Button
-                                className="bg-kisan-green hover:bg-kisan-green-dark text-white"
+                                className="w-full bg-kisan-green hover:bg-kisan-green-dark text-white py-6"
                                 onClick={analyzeImage}
                                 disabled={loading}
                               >
                                 {loading ? (
                                   <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Analyzing...
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Analyzing Image...
                                   </>
                                 ) : (
                                   <>
-                                    Analyze Image
+                                    <Leaf className="mr-2 h-5 w-5" />
+                                    Analyze Plant Image
                                   </>
                                 )}
                               </Button>
@@ -261,13 +320,13 @@ const DiseaseDetection = () => {
                     </Card>
                   )}
                   
-                  <Card>
-                    <CardContent className="p-6">
+                  <Card className="border-none shadow-md bg-amber-50 dark:bg-amber-900/10">
+                    <CardContent className="p-4">
                       <div className="flex items-start">
-                        <Info className="h-5 w-5 text-kisan-green dark:text-kisan-gold mr-2 flex-shrink-0 mt-0.5" />
+                        <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 mr-2 flex-shrink-0 mt-0.5" />
                         <div className="space-y-2">
-                          <h3 className="text-sm font-medium">For best results:</h3>
-                          <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-1 list-disc pl-5">
+                          <h3 className="text-sm font-medium text-amber-700 dark:text-amber-300">For best results:</h3>
+                          <ul className="text-sm text-amber-600 dark:text-amber-400 space-y-1.5 list-disc pl-5">
                             <li>Take close-up photos in good lighting</li>
                             <li>Include multiple affected areas</li>
                             <li>Avoid shadows and blurry images</li>
@@ -281,60 +340,76 @@ const DiseaseDetection = () => {
                 
                 <div>
                   {result ? (
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="mb-6">
-                          <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-semibold">Detection Results</h3>
-                            <div className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">
-                              Confidence: {result.confidence}%
-                            </div>
+                    <Card className="overflow-hidden border-none shadow-lg">
+                      <CardHeader className="bg-gray-50 dark:bg-gray-800 p-4 border-b dark:border-gray-700">
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-lg">Detection Results</CardTitle>
+                          <div>
+                            {renderConfidenceBadge(result.confidence)}
                           </div>
-                          
-                          <div className="mt-4 p-3 rounded-lg bg-kisan-green/10 dark:bg-kisan-green/20">
-                            <h4 className="font-semibold text-kisan-green dark:text-kisan-gold">
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="p-4 bg-kisan-green/10 dark:bg-kisan-green/20 border-b dark:border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-kisan-green dark:text-kisan-gold" />
+                            <h4 className="font-semibold text-xl text-kisan-green dark:text-kisan-gold">
                               {result.disease_name}
                             </h4>
                           </div>
                         </div>
                         
-                        <div className="space-y-4">
+                        <div className="p-6 space-y-6">
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                              Description
+                            <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Badge variant="outline" className="mr-2 p-1 h-auto">Description</Badge>
                             </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                               {result.description}
                             </p>
                           </div>
                           
+                          <Separator />
+                          
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                              Recommendations
+                            <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Badge variant="outline" className="mr-2 p-1 h-auto">Recommendations</Badge>
                             </h4>
-                            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
+                            <ul className="text-gray-600 dark:text-gray-400 space-y-2">
                               {result.recommendations.map((recommendation, index) => (
-                                <li key={index}>{recommendation}</li>
+                                <li key={index} className="flex items-start">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-kisan-green/10 dark:bg-kisan-green/20 h-5 w-5 text-xs text-kisan-green dark:text-kisan-gold font-medium mr-2 mt-0.5 flex-shrink-0">
+                                    {index + 1}
+                                  </span>
+                                  <span>{recommendation}</span>
+                                </li>
                               ))}
                             </ul>
                           </div>
                           
+                          <Separator />
+                          
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                              Treatment Options
+                            <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                              <Badge variant="outline" className="mr-2 p-1 h-auto">Treatment Options</Badge>
                             </h4>
-                            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
+                            <ul className="text-gray-600 dark:text-gray-400 space-y-2">
                               {result.treatment.map((treatment, index) => (
-                                <li key={index}>{treatment}</li>
+                                <li key={index} className="flex items-start">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-kisan-green/10 dark:bg-kisan-green/20 h-5 w-5 text-xs text-kisan-green dark:text-kisan-gold font-medium mr-2 mt-0.5 flex-shrink-0">
+                                    {index + 1}
+                                  </span>
+                                  <span>{treatment}</span>
+                                </li>
                               ))}
                             </ul>
                           </div>
                         </div>
                         
-                        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex items-start mb-4">
+                        <div className="p-6 pt-0">
+                          <div className="flex items-start mb-4 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                             <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-sm text-amber-700 dark:text-amber-400">
                               This is an AI-generated analysis. For severe cases, consult with an agricultural expert.
                             </p>
                           </div>
@@ -357,31 +432,61 @@ const DiseaseDetection = () => {
                             )}
                           </Button>
 
-                          <FeedbackForm 
-                            analysisId={result.disease_name}
-                            onSubmit={async (isHelpful, comment) => {
-                              // TODO: Implement feedback submission to Supabase
-                              console.log('Feedback:', {isHelpful, comment});
-                            }}
-                          />
+                          <div className="mt-6 border rounded-lg">
+                            <FeedbackForm 
+                              analysisId={result.disease_name}
+                              onSubmit={async (isHelpful, comment) => {
+                                // TODO: Implement feedback submission to Supabase
+                                console.log('Feedback:', {isHelpful, comment});
+                              }}
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
                   ) : preview ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                      <Info className="h-10 w-10 mb-4 text-gray-400" />
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-md">
+                      <div className="w-16 h-16 bg-kisan-green/10 dark:bg-kisan-green/20 rounded-full flex items-center justify-center mb-4">
+                        <Info className="h-8 w-8 text-kisan-green dark:text-kisan-gold" />
+                      </div>
                       <h3 className="text-lg font-medium mb-2">Analysis Pending</h3>
-                      <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
                         Click "Analyze Image" to detect plant diseases and get recommendations.
                       </p>
+                      <Button 
+                        className="bg-kisan-green hover:bg-kisan-green-dark text-white"
+                        onClick={analyzeImage}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            Analyze Now
+                          </>
+                        )}
+                      </Button>
                     </div>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                      <Info className="h-10 w-10 mb-4 text-gray-400" />
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-md">
+                      <div className="w-16 h-16 bg-kisan-green/10 dark:bg-kisan-green/20 rounded-full flex items-center justify-center mb-4">
+                        <Leaf className="h-8 w-8 text-kisan-green dark:text-kisan-gold" />
+                      </div>
                       <h3 className="text-lg font-medium mb-2">Detection Results</h3>
-                      <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
                         Upload a plant image to see disease detection results and treatment recommendations.
                       </p>
+                      <Button
+                        variant="outline"
+                        className="border-kisan-green text-kisan-green hover:bg-kisan-green/10 dark:border-kisan-gold dark:text-kisan-gold dark:hover:bg-kisan-gold/10"
+                        onClick={() => document.getElementById('image-upload')?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -389,40 +494,52 @@ const DiseaseDetection = () => {
             </TabsContent>
             
             <TabsContent value="history">
-              <Card>
+              <Card className="border-none shadow-lg overflow-hidden">
+                <CardHeader className="bg-kisan-green text-white dark:bg-kisan-green-dark p-4">
+                  <CardTitle className="text-lg">Detection History</CardTitle>
+                  <CardDescription className="text-white/80">
+                    Your previous plant disease detection results
+                  </CardDescription>
+                </CardHeader>
                 <CardContent className="p-6">
                   {getAnalysisHistory("disease_detection").length > 0 ? (
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-semibold">Previous Detections</h3>
-                      
-                      <div className="space-y-4">
-                        {getAnalysisHistory("disease_detection").map((item) => (
-                          <div 
-                            key={item.id}
-                            className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium">{item.disease_name}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {new Date(item.timestamp).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div className="text-sm px-2 py-1 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 rounded">
-                                {item.confidence}% confidence
-                              </div>
+                    <div className="space-y-4">
+                      {getAnalysisHistory("disease_detection").map((item) => (
+                        <div 
+                          key={item.id}
+                          className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-kisan-green dark:text-kisan-gold">{item.disease_name}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString()}
+                              </p>
+                            </div>
+                            <div>
+                              {renderConfidenceBadge(item.confidence)}
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <Info className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-medium mb-2">Detection History</h3>
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Info className="h-8 w-8 text-gray-400 dark:text-gray-600" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No Detection History</h3>
                       <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
                         Your previous detection results will appear here once you analyze some plants.
                       </p>
+                      <Button
+                        variant="outline"
+                        className="border-kisan-green text-kisan-green hover:bg-kisan-green/10 dark:border-kisan-gold dark:text-kisan-gold dark:hover:bg-kisan-gold/10"
+                        onClick={() => document.querySelector('[data-value="detection"]')?.click()}
+                      >
+                        <Leaf className="mr-2 h-4 w-4" />
+                        Go to Detection
+                      </Button>
                     </div>
                   )}
                 </CardContent>
@@ -430,46 +547,58 @@ const DiseaseDetection = () => {
             </TabsContent>
             
             <TabsContent value="guide">
-              <Card>
+              <Card className="border-none shadow-lg overflow-hidden">
+                <CardHeader className="bg-kisan-green text-white dark:bg-kisan-green-dark p-4">
+                  <CardTitle className="text-lg">How to Use Plant Disease Detection</CardTitle>
+                  <CardDescription className="text-white/80">
+                    Follow these steps to get the most accurate results
+                  </CardDescription>
+                </CardHeader>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">How to Use Plant Disease Detection</h3>
-                  
-                  <ol className="space-y-4 list-decimal pl-5">
-                    <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Take a clear photo</span>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <ol className="space-y-6 list-none pl-0 relative before:absolute before:left-3 before:top-2 before:h-[calc(100%-20px)] before:w-0.5 before:bg-kisan-green/20 dark:before:bg-kisan-green/30">
+                    <li className="text-gray-700 dark:text-gray-300 ml-10 relative">
+                      <div className="absolute -left-10 flex items-center justify-center w-6 h-6 rounded-full bg-kisan-green text-white dark:bg-kisan-green-dark text-sm">1</div>
+                      <span className="font-medium text-lg">Take a clear photo</span>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
                         Ensure good lighting and focus on the affected plant part (leaves, stems, fruits).
                       </p>
                     </li>
-                    <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Upload the image</span>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <li className="text-gray-700 dark:text-gray-300 ml-10 relative">
+                      <div className="absolute -left-10 flex items-center justify-center w-6 h-6 rounded-full bg-kisan-green text-white dark:bg-kisan-green-dark text-sm">2</div>
+                      <span className="font-medium text-lg">Upload the image</span>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
                         Click on "Browse Files" to select an image from your device or use the camera.
                       </p>
                     </li>
-                    <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Analyze the image</span>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <li className="text-gray-700 dark:text-gray-300 ml-10 relative">
+                      <div className="absolute -left-10 flex items-center justify-center w-6 h-6 rounded-full bg-kisan-green text-white dark:bg-kisan-green-dark text-sm">3</div>
+                      <span className="font-medium text-lg">Analyze the image</span>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
                         Our AI system powered by Gemini 1.5 Flash will analyze your plant image and identify potential diseases.
                       </p>
                     </li>
-                    <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Review results</span>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <li className="text-gray-700 dark:text-gray-300 ml-10 relative">
+                      <div className="absolute -left-10 flex items-center justify-center w-6 h-6 rounded-full bg-kisan-green text-white dark:bg-kisan-green-dark text-sm">4</div>
+                      <span className="font-medium text-lg">Review results</span>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
                         You'll receive information about the detected disease, including description and treatment options.
                       </p>
                     </li>
-                    <li className="text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">Get expert advice (optional)</span>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <li className="text-gray-700 dark:text-gray-300 ml-10 relative">
+                      <div className="absolute -left-10 flex items-center justify-center w-6 h-6 rounded-full bg-kisan-green text-white dark:bg-kisan-green-dark text-sm">5</div>
+                      <span className="font-medium text-lg">Get expert advice (optional)</span>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
                         Submit your results for review by agricultural experts for more detailed advice.
                       </p>
                     </li>
                   </ol>
                   
-                  <div className="mt-6 p-4 bg-kisan-green/10 dark:bg-kisan-green/20 rounded-lg">
-                    <h4 className="font-semibold text-kisan-green dark:text-kisan-gold mb-2">Where is data stored?</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="mt-8 p-4 bg-kisan-green/10 dark:bg-kisan-green/20 rounded-lg border border-kisan-green/20 dark:border-kisan-green/30">
+                    <h4 className="font-semibold text-kisan-green dark:text-kisan-gold mb-2 flex items-center">
+                      <Info className="mr-2 h-4 w-4" />
+                      Privacy Information
+                    </h4>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
                       All your detection data is stored locally on your device for privacy. The history 
                       tab shows your previous detections. In a future update, you'll be able to sync 
                       data across devices with a Kisan Dost account.
