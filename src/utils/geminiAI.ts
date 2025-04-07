@@ -1,4 +1,20 @@
-// Gemini API integration for image analysis
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// API Keys with fallback
+const API_KEYS = [
+  "AIzaSyAdD2GXQZaVJXQQJliPaupGfEFfuFzBdwc",
+  "AIzaSyAmc78NU-vGwvjajje2YBD3LI2uYqub3tE"
+];
+
+// Initialize Gemini client with retry logic
+let currentKeyIndex = 0;
+let genAI = new GoogleGenerativeAI(API_KEYS[currentKeyIndex]);
+let model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+
+async function initializeModel(keyIndex = 0) {
+  currentKeyIndex = keyIndex;
+  genAI = new GoogleGenerativeAI(API_KEYS[currentKeyIndex]);
+  model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
 export interface AnalysisResult {
   result: string;
   confidence: number;
@@ -33,22 +49,81 @@ export const analyzePlantDisease = async (imageBase64: string): Promise<{
   treatment: string[];
 }> => {
   try {
-    console.log("Analyzing plant disease with Gemini...");
+    console.log("Starting plant disease analysis...");
     
-    // Mock response for now since we don't have actual Gemini API access
-    // In a real implementation, this would call the Gemini API
-    const mockResponse = await mockGeminiAnalysis(imageBase64, "plant_disease");
+    // Validate input image
+    validateBase64Image(imageBase64);
+    console.log("Image validated successfully");
+
+    // Prepare prompt
+    console.log("Creating analysis prompt...");
+    const prompt = `Analyze this plant image for diseases. Provide:
+    - Disease name (or "Healthy" if no disease)
+    - Confidence percentage (0-100)
+    - Detailed description of symptoms
+    - 3-5 recommendations for treatment
+    - 3-5 prevention methods
+    
+    Format response as JSON with these keys:
+    disease_name, confidence, description, treatment, prevention`;
+
+    // Convert base64 to Gemini-compatible format
+    const imageParts = [
+      {
+        inlineData: {
+          data: imageBase64,
+          mimeType: "image/jpeg"
+        }
+      }
+    ];
+
+    // Call Gemini API
+    console.log("Calling Gemini API...");
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = await result.response;
+    console.log("API call successful. Response:", response);
+    
+    const text = response.text();
+    console.log("Raw API response:", text);
+    
+    // Clean and parse response
+    let analysis;
+    try {
+      // First try direct parse
+      analysis = JSON.parse(text);
+    } catch (e) {
+      console.log("Attempting to clean response before parsing...");
+      try {
+        // Remove markdown formatting if present
+        const cleanedText = text
+          .replace(/^```json/g, '')
+          .replace(/```$/g, '')
+          .trim();
+        analysis = JSON.parse(cleanedText);
+      } catch (e2) {
+        console.error("Failed to parse API response after cleaning:", {
+          originalError: e.message,
+          cleaningError: e2.message,
+          response: text
+        });
+        throw new Error(`API response parsing failed: ${e2.message}`);
+      }
+    }
     
     return {
-      disease_name: mockResponse.result,
-      confidence: mockResponse.confidence,
-      description: mockResponse.description,
-      recommendations: mockResponse.recommendations.slice(0, 3),
-      treatment: mockResponse.recommendations.slice(3),
+      disease_name: analysis.disease_name,
+      confidence: analysis.confidence,
+      description: analysis.description,
+      recommendations: analysis.prevention,
+      treatment: analysis.treatment
     };
   } catch (error) {
-    console.error("Error in analyzePlantDisease:", error);
-    throw new Error("Failed to analyze plant disease image");
+    console.error("Analysis failed:", {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    throw new Error(`Analysis failed: ${error.message}`);
   }
 };
 
@@ -63,32 +138,41 @@ export const analyzeSoil = async (imageBase64: string): Promise<{
   try {
     console.log("Analyzing soil with Gemini...");
     
-    // Mock response for now
-    const mockResponse = await mockGeminiAnalysis(imageBase64, "soil_analysis");
+    // Prepare prompt
+    const prompt = `Analyze this soil image. Provide:
+    - Soil type
+    - Confidence percentage (0-100)
+    - Estimated pH level
+    - Nutrient levels (Nitrogen, Phosphorus, Potassium)
+    - 3-5 recommendations for soil improvement
+    
+    Format response as JSON with these keys:
+    soil_type, confidence, ph_level, nutrients, recommendations`;
+
+    // Convert base64 to Gemini-compatible format
+    const imageParts = [
+      {
+        inlineData: {
+          data: imageBase64,
+          mimeType: "image/jpeg"
+        }
+      }
+    ];
+
+    // Call Gemini API
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Parse response (assuming it's valid JSON)
+    const analysis = JSON.parse(text);
     
     return {
-      soil_type: mockResponse.result,
-      confidence: mockResponse.confidence,
-      ph_level: mockResponse.description.includes("pH") ? 
-        mockResponse.description.split("pH")[1].trim().split(" ")[0] : "6.5",
-      nutrients: [
-        { 
-          name: "Nitrogen", 
-          level: "Medium", 
-          recommendation: "Add nitrogen-rich fertilizers like urea or compost" 
-        },
-        { 
-          name: "Phosphorus", 
-          level: "Low", 
-          recommendation: "Add bone meal or rock phosphate" 
-        },
-        { 
-          name: "Potassium", 
-          level: "High", 
-          recommendation: "No additional potassium needed" 
-        }
-      ],
-      recommendations: mockResponse.recommendations,
+      soil_type: analysis.soil_type,
+      confidence: analysis.confidence,
+      ph_level: analysis.ph_level,
+      nutrients: analysis.nutrients,
+      recommendations: analysis.recommendations
     };
   } catch (error) {
     console.error("Error in analyzeSoil:", error);
@@ -193,152 +277,22 @@ export const predictYield = async (
   }
 };
 
-// Mock function to simulate Gemini API response
-const mockGeminiAnalysis = async (
-  imageBase64: string,
-  analysisType: "plant_disease" | "soil_analysis"
-): Promise<AnalysisResult> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Use part of the image data as a seed for randomization
-  // We'll use a combination of timestamp and image data to ensure variability between uploads
-  const timestamp = Date.now();
-  const hashBase = imageBase64.substring(0, 100);
-  const hashSum = Array.from(hashBase).reduce((sum, char, index) => 
-    sum + char.charCodeAt(0) * (index + 1), 0);
-  
-  // Combine timestamp and image data for a more unique seed
-  const seed = (hashSum + timestamp) % 1000;
-  
-  if (analysisType === "plant_disease") {
-    const diseases = [
-      {
-        name: "Rice Blast",
-        description: "A fungal disease affecting rice plants, characterized by lesions on leaves and stems. It is one of the most destructive rice diseases globally.",
-        recommendations: [
-          "Apply fungicides containing tricyclazole or azoxystrobin",
-          "Use resistant rice varieties",
-          "Maintain proper field drainage to reduce humidity",
-          "Apply silica to strengthen plant cell walls",
-          "Treat seeds with fungicide before planting",
-          "Maintain proper spacing between plants for better air circulation"
-        ]
-      },
-      {
-        name: "Bacterial Leaf Blight",
-        description: "A bacterial disease affecting rice plants, causing water-soaked lesions that turn yellow to white as they mature. It can lead to significant yield loss.",
-        recommendations: [
-          "Use copper-based bactericides for management",
-          "Plant resistant varieties",
-          "Practice crop rotation with non-host crops",
-          "Apply streptomycin sulfate in early stages",
-          "Avoid over-fertilization with nitrogen",
-          "Remove and destroy infected plant debris"
-        ]
-      },
-      {
-        name: "Powdery Mildew",
-        description: "A fungal disease affecting various crops, appearing as white powdery spots on leaves and stems. It can reduce photosynthesis and plant vigor.",
-        recommendations: [
-          "Apply sulfur-based fungicides at early signs",
-          "Use neem oil as an organic alternative",
-          "Ensure adequate spacing between plants for airflow",
-          "Potassium bicarbonate sprays can be effective",
-          "Remove severely infected leaves",
-          "Avoid overhead watering to reduce humidity"
-        ]
-      },
-      {
-        name: "Brown Spot",
-        description: "A fungal disease that affects rice leaves and grains, characterized by brown lesions with yellow halos. It can reduce grain quality and yield.",
-        recommendations: [
-          "Apply fungicides containing propiconazole or tebuconazole",
-          "Use balanced fertilization, especially potassium",
-          "Avoid water stress conditions",
-          "Remove infected plant debris from the field",
-          "Use certified disease-free seeds",
-          "Implement proper water management practices"
-        ]
-      },
-      {
-        name: "Leaf Rust",
-        description: "A fungal disease that affects wheat and other cereal crops, appearing as orange-brown pustules on leaves. It can significantly reduce crop yield.",
-        recommendations: [
-          "Apply triazole or strobilurin fungicides",
-          "Plant rust-resistant varieties when available",
-          "Early planting to avoid peak rust season",
-          "Implement crop rotation with non-host plants",
-          "Monitor fields regularly for early detection",
-          "Remove alternate hosts like barberry plants from field vicinity"
-        ]
-      }
-    ];
 
-    // Use the seed to select a disease - ensuring different images get different diseases
-    const diseaseIndex = seed % diseases.length;
-    const selectedDisease = diseases[diseaseIndex];
-    
-    // Generate a confidence score that varies
-    const confidence = 65 + (seed % 30);
-    
-    return {
-      result: selectedDisease.name,
-      confidence: confidence,
-      description: selectedDisease.description,
-      recommendations: selectedDisease.recommendations
-    };
-  } else {
-    const soilTypes = [
-      {
-        name: "Black Cotton Soil",
-        description: "pH 6.5-8.5. Rich in clay minerals, has high water retention capacity but poor drainage. Common in central and western India.",
-        recommendations: [
-          "Add organic matter to improve drainage",
-          "Gypsum application can improve soil structure",
-          "Avoid deep cultivation when soil is dry",
-          "Consider raised beds for better drainage in rainy season",
-          "Good for growing cotton, wheat, and sugarcane"
-        ]
-      },
-      {
-        name: "Red Soil",
-        description: "pH 5.5-6.8. Contains iron oxide, generally low in nitrogen and phosphorus. Common in eastern and southern regions of India.",
-        recommendations: [
-          "Add nitrogen-rich fertilizers",
-          "Incorporate phosphorus supplements like rock phosphate",
-          "Add organic compost to improve fertility",
-          "Consider leguminous cover crops to fix nitrogen",
-          "Suitable for growing groundnuts, millets, and pulses"
-        ]
-      },
-      {
-        name: "Alluvial Soil",
-        description: "pH 6.5-7.5. Formed by river deposits, rich in potash but may lack nitrogen and phosphorus. Found in the Indo-Gangetic plains.",
-        recommendations: [
-          "Balance with NPK fertilizers as needed",
-          "Ideal for most crops including rice, wheat, and sugarcane",
-          "Monitor zinc levels as deficiency is common",
-          "Maintain proper irrigation as water retention varies",
-          "Excellent base soil requiring minimal amendments for most crops"
-        ]
-      }
-    ];
-
-    const soilIndex = seed % soilTypes.length;
-    const selectedSoil = soilTypes[soilIndex];
-    
-    return {
-      result: selectedSoil.name,
-      confidence: 75 + (seed % 20),
-      description: selectedSoil.description,
-      recommendations: selectedSoil.recommendations
-    };
-  }
-};
+interface AnalysisData {
+  disease_name?: string;
+  soil_type?: string;
+  confidence: number;
+  description?: string;
+  recommendations: string[];
+  treatment?: string[];
+  ph_level?: string;
+  nutrients?: Array<{name: string; level: string; recommendation: string}>;
+  timestamp: string;
+  type: string;
+}
 
 // Data storage functions
-export const storeAnalysisData = async (data: any, type: string): Promise<string> => {
+export const storeAnalysisData = async (data: Omit<AnalysisData, 'timestamp' | 'type'>, type: string): Promise<string> => {
   try {
     // This function would normally save data to a database
     // For now we'll simulate storage by saving to localStorage with a unique ID
@@ -357,9 +311,9 @@ export const storeAnalysisData = async (data: any, type: string): Promise<string
 };
 
 // Get stored analysis history
-export const getAnalysisHistory = (type: string): any[] => {
+export const getAnalysisHistory = (type: string): AnalysisData[] => {
   try {
-    const history: any[] = [];
+    const history: AnalysisData[] = [];
     
     // Scan localStorage for items matching the type
     for (let i = 0; i < localStorage.length; i++) {
