@@ -1,5 +1,6 @@
 
 import { useState, useRef } from "react";
+import { FeedbackForm } from "@/components/FeedbackForm";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
@@ -17,6 +18,12 @@ interface DetectionResult {
   description: string;
   recommendations: string[];
   treatment: string[];
+}
+
+interface AnalysisData extends DetectionResult {
+  id: string;
+  timestamp: string;
+  type: string;
 }
 
 const DiseaseDetection = () => {
@@ -91,7 +98,7 @@ const DiseaseDetection = () => {
       
       await storeAnalysisData(analysisResult, "disease_detection");
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error analyzing image:", error);
       toast({
         title: "Analysis Failed",
@@ -349,6 +356,14 @@ const DiseaseDetection = () => {
                               </>
                             )}
                           </Button>
+
+                          <FeedbackForm 
+                            analysisId={result.disease_name}
+                            onSubmit={async (isHelpful, comment) => {
+                              // TODO: Implement feedback submission to Supabase
+                              console.log('Feedback:', {isHelpful, comment});
+                            }}
+                          />
                         </div>
                       </CardContent>
                     </Card>
@@ -381,7 +396,7 @@ const DiseaseDetection = () => {
                       <h3 className="text-lg font-semibold">Previous Detections</h3>
                       
                       <div className="space-y-4">
-                        {getAnalysisHistory("disease_detection").map((item: any) => (
+                        {getAnalysisHistory("disease_detection").map((item) => (
                           <div 
                             key={item.id}
                             className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"

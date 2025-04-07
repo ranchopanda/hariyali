@@ -18,6 +18,10 @@ export interface CameraState {
 // Function to request camera access
 export const requestCameraAccess = async (): Promise<MediaStream> => {
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Camera API not available in this environment");
+    }
+    
     const stream = await navigator.mediaDevices.getUserMedia({ 
       video: { 
         facingMode: 'environment',
@@ -27,18 +31,20 @@ export const requestCameraAccess = async (): Promise<MediaStream> => {
     });
     
     return stream;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Camera access error:", error);
     
-    if (error.name === 'NotAllowedError') {
-      throw new Error("Camera access denied. Please grant permission to use the camera.");
-    } else if (error.name === 'NotFoundError') {
-      throw new Error("No camera found. Please make sure your device has a camera.");
-    } else if (error.name === 'NotReadableError') {
-      throw new Error("Camera is in use by another application.");
-    } else {
+    if (error instanceof Error) {
+      if (error.name === 'NotAllowedError') {
+        throw new Error("Camera access denied. Please grant permission to use the camera.");
+      } else if (error.name === 'NotFoundError') {
+        throw new Error("No camera found. Please make sure your device has a camera.");
+      } else if (error.name === 'NotReadableError') {
+        throw new Error("Camera is in use by another application.");
+      }
       throw new Error("Failed to access camera: " + (error.message || "Unknown error"));
     }
+    throw new Error("Failed to access camera: Unknown error");
   }
 };
 
@@ -107,11 +113,13 @@ export const initializeCamera = async (
     
     setStream(stream);
     setError(null);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Camera initialization error:", error);
-    setError(error.message || "Failed to initialize camera");
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to initialize camera";
+    setError(errorMessage);
     setStream(null);
-    
-    toast.error(error.message || "Failed to initialize camera");
+    toast.error(errorMessage);
   }
 };

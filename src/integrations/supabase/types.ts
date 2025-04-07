@@ -9,7 +9,32 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      farm_data_snapshots: {
+        Row: {
+          id: string
+          user_id: string
+          timestamp: string
+          type: string
+          data: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          timestamp?: string
+          type: string
+          data: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          timestamp?: string
+          type?: string
+          data?: Json
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

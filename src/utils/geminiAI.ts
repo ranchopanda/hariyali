@@ -15,6 +15,19 @@ async function initializeModel(keyIndex = 0) {
   currentKeyIndex = keyIndex;
   genAI = new GoogleGenerativeAI(API_KEYS[currentKeyIndex]);
   model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+}
+
+// Validate base64 image
+function validateBase64Image(base64: string) {
+  if (!base64 || base64.length < 100) {
+    throw new Error("Invalid image data: too short");
+  }
+  if (!base64.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
+    throw new Error("Invalid base64 image format");
+  }
+}
+
+// Gemini API integration for image analysis
 export interface AnalysisResult {
   result: string;
   confidence: number;
@@ -86,27 +99,54 @@ export const analyzePlantDisease = async (imageBase64: string): Promise<{
     const text = response.text();
     console.log("Raw API response:", text);
     
-    // Clean and parse response
+    // Extract and validate JSON response
     let analysis;
-    try {
-      // First try direct parse
-      analysis = JSON.parse(text);
-    } catch (e) {
-      console.log("Attempting to clean response before parsing...");
+    let parseAttempts = 0;
+    const maxAttempts = 3; // Max retry attempts (key rotation + parsing)
+    
+    while (parseAttempts < maxAttempts) {
       try {
-        // Remove markdown formatting if present
-        const cleanedText = text
-          .replace(/^```json/g, '')
-          .replace(/```$/g, '')
-          .trim();
-        analysis = JSON.parse(cleanedText);
-      } catch (e2) {
-        console.error("Failed to parse API response after cleaning:", {
-          originalError: e.message,
-          cleaningError: e2.message,
-          response: text
-        });
-        throw new Error(`API response parsing failed: ${e2.message}`);
+        // Try to extract JSON from response text
+        const jsonMatch = text.match(/\{[^{}]*\}/gs) || [];
+        if (jsonMatch.length === 0) throw new Error('No JSON found in response');
+        
+        // Find the longest valid JSON portion
+        let jsonStr = '';
+        for (const match of jsonMatch) {
+          try {
+            JSON.parse(match);
+            if (match.length > jsonStr.length) jsonStr = match;
+          } catch {
+            // Ignore invalid JSON segments during extraction
+          }
+        }
+        
+        if (!jsonStr) throw new Error('No valid JSON segments found');
+        
+        analysis = JSON.parse(jsonStr);
+        break;
+      } catch (error) {
+        parseAttempts++;
+        console.warn(`Parse attempt ${parseAttempts} failed:`, error.message);
+        
+        if (parseAttempts >= maxAttempts) {
+          // Try next API key if available
+          if (currentKeyIndex < API_KEYS.length - 1) {
+            console.log(`Switching to API key ${currentKeyIndex + 1}`);
+            await initializeModel(currentKeyIndex + 1);
+            parseAttempts = 0; // Reset attempts for new key
+            continue;
+          }
+          
+          // All attempts exhausted
+          console.error("Final parse failure:", {
+            error: error.message,
+            response: text,
+            attempts: parseAttempts,
+            timestamp: new Date().toISOString()
+          });
+          throw new Error("Failed to parse valid JSON after all attempts");
+        }
       }
     }
     
@@ -164,8 +204,39 @@ export const analyzeSoil = async (imageBase64: string): Promise<{
     const response = await result.response;
     const text = response.text();
     
-    // Parse response (assuming it's valid JSON)
-    const analysis = JSON.parse(text);
+    // Parse response with better error handling
+    let analysis;
+    try {
+      const jsonMatch = text.match(/\{[^{}]*\}/gs) || [];
+      if (jsonMatch.length === 0) {
+        throw new Error('No JSON found in response');
+      }
+      
+      // Find the longest valid JSON portion
+      let jsonStr = '';
+      for (const match of jsonMatch) {
+        try {
+          JSON.parse(match);
+          if (match.length > jsonStr.length) jsonStr = match;
+        } catch {
+          continue;
+        }
+      }
+      
+      if (!jsonStr) {
+        throw new Error('No valid JSON segments found');
+      }
+      
+      analysis = JSON.parse(jsonStr);
+      
+      // Validate required fields
+      if (!analysis.soil_type || !analysis.ph_level) {
+        throw new Error('Incomplete analysis data received');
+      }
+    } catch (error) {
+      console.error('Failed to parse analysis:', error);
+      throw new Error(`Analysis failed: ${error instanceof Error ? error.message : 'Invalid response format'}`);
+    }
     
     return {
       soil_type: analysis.soil_type,
@@ -311,9 +382,61 @@ export const storeAnalysisData = async (data: Omit<AnalysisData, 'timestamp' | '
 };
 
 // Get stored analysis history
-export const getAnalysisHistory = (type: string): AnalysisData[] => {
+// Analyze Git errors using Gemini
+export const analyzeGitError = async (error: string): Promise<{
+  analysis: string;
+  suggestedCommands: string[];
+  confidence: number;
+}> => {
   try {
-    const history: AnalysisData[] = [];
+    const prompt = `As a Git expert, analyze this error for an Indian agricultural tech project codebase. Consider:
+    - Standard git workflows for feature branches
+    - Team collaboration patterns
+    - Safe resolution approaches
+    
+    Provide:
+    1. Error explanation
+    2. 95% confidence - safest solution
+    3. 85% confidence - alternative
+    4. Risk assessment
+    
+    Error Context:
+    Codebase: React/TypeScript
+    ${error}
+    
+    Format response as JSON with these keys:
+    analysis, suggestedCommands, confidence`;
+
+    const result = await model.generateContent([prompt]);
+    const response = await result.response;
+    const text = response.text();
+
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[^{}]*\}/gs) || [];
+    const jsonStr = jsonMatch.length > 0 ? jsonMatch[0] : null;
+    
+    if (!jsonStr) {
+      throw new Error('No valid JSON found in Gemini response');
+    }
+
+    return JSON.parse(jsonStr);
+  } catch (error) {
+    console.error("Git error analysis failed:", error);
+    return {
+      analysis: "Failed to analyze Git error",
+      suggestedCommands: ["git status", "git pull", "git push --force"],
+      confidence: 0
+    };
+  }
+};
+
+interface StoredAnalysisData extends AnalysisData {
+  id: string;
+}
+
+export const getAnalysisHistory = (type: string): StoredAnalysisData[] => {
+  try {
+    const history: StoredAnalysisData[] = [];
     
     // Scan localStorage for items matching the type
     for (let i = 0; i < localStorage.length; i++) {

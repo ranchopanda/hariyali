@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
@@ -19,6 +19,19 @@ import {
   storeAnalysisData, 
   getAnalysisHistory 
 } from "@/utils/geminiAI";
+import { saveFarmSnapshot, getFarmSnapshots, FarmDataSnapshotRow } from "@/utils/farmDataSnapshots";
+
+function isSoilAnalysisResult(data: unknown): data is SoilAnalysisResult {
+  return (
+    typeof data === 'object' && 
+    data !== null &&
+    'soil_type' in data &&
+    'confidence' in data &&
+    'ph_level' in data &&
+    'nutrients' in data &&
+    'recommendations' in data
+  );
+}
 
 interface SoilAnalysisResult {
   soil_type: string;
@@ -40,6 +53,8 @@ const SoilAnalysis = () => {
   const [result, setResult] = useState<SoilAnalysisResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [snapshots, setSnapshots] = useState<FarmDataSnapshotRow[]>([]);
+  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,12 +120,27 @@ const SoilAnalysis = () => {
       // Store the result
       await storeAnalysisData(analysisResult, "soil_analysis");
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error("Error analyzing image:", error);
+      let errorDescription = "There was an error analyzing the soil image.";
+      if (errorMessage.includes("denied") || errorMessage.includes("permission")) {
+        errorDescription = "API access denied. Please check your API keys.";
+      } else if (errorMessage.includes("JSON") || errorMessage.includes("format")) {
+        errorDescription = "Received invalid analysis results. Please try again.";
+      } else if (errorMessage.includes("clearer")) {
+        errorDescription = "Image quality too low. Please try with a clearer, well-lit photo.";
+      }
+      
       toast({
         title: "Analysis Failed",
-        description: "There was an error analyzing the soil image. Please try again with a clearer image.",
+        description: errorDescription,
         variant: "destructive",
+        action: (
+          <Button variant="ghost" size="sm" onClick={analyzeImage}>
+            Retry
+          </Button>
+        )
       });
     } finally {
       setLoading(false);
@@ -353,23 +383,58 @@ const SoilAnalysis = () => {
                             </p>
                           </div>
                           
-                          <Button 
-                            className="w-full bg-kisan-green hover:bg-kisan-green-dark text-white"
-                            onClick={uploadToServer}
-                            disabled={isUploading}
-                          >
-                            {isUploading ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Submitting...
-                              </>
-                            ) : (
-                              <>
-                                Submit for Expert Advice
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                              </>
-                            )}
-                          </Button>
+                          <div className="space-y-2">
+                            <Button 
+                              className="w-full bg-kisan-green hover:bg-kisan-green-dark text-white"
+                              onClick={uploadToServer}
+                              disabled={isUploading}
+                            >
+                              {isUploading ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Submitting...
+                                </>
+                              ) : (
+                                <>
+                                  Submit for Expert Advice
+                                  <ArrowRight className="ml-2 h-4 w-4" />
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              onClick={async () => {
+                                if (!result) return;
+                                try {
+                                  await saveFarmSnapshot({
+                                    user_id: "current_user_id", // TODO: Replace with actual user ID
+                                    timestamp: new Date().toISOString(),
+                                    type: "soil_analysis",
+                                    data: {
+                                      soil_type: result.soil_type,
+                                      confidence: result.confidence,
+                                      ph_level: result.ph_level,
+                                      nutrients: result.nutrients,
+                                      recommendations: result.recommendations
+                                    }
+                                  });
+                                  toast({
+                                    title: "Snapshot Saved",
+                                    description: "Your soil analysis has been saved locally."
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Failed to save snapshot",
+                                    description: "Could not save your soil analysis.",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                            >
+                              Save Farm Snapshot
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -397,25 +462,35 @@ const SoilAnalysis = () => {
             <TabsContent value="history">
               <Card>
                 <CardContent className="p-6">
-                  {getAnalysisHistory("soil_analysis").length > 0 ? (
+                  {loadingSnapshots ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  ) : snapshots.length > 0 ? (
                     <div className="space-y-6">
                       <h3 className="text-lg font-semibold">Previous Soil Analyses</h3>
                       
                       <div className="space-y-4">
-                        {getAnalysisHistory("soil_analysis").map((item: any) => (
+                        {snapshots.map((snapshot) => (
                           <div 
-                            key={item.id}
+                            key={snapshot.id}
                             className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <p className="font-medium">{item.soil_type}</p>
+                                <p className="font-medium">{
+                                  isSoilAnalysisResult(snapshot.data) ? 
+                                  snapshot.data.soil_type : "Unknown Soil Type"
+                                }</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  pH: {item.ph_level} • {new Date(item.timestamp).toLocaleDateString()}
+                                  {isSoilAnalysisResult(snapshot.data) ? 
+                                  `pH: ${snapshot.data.ph_level} • ` : ''}
+                                  {new Date(snapshot.timestamp).toLocaleDateString()}
                                 </p>
                               </div>
                               <div className="text-sm px-2 py-1 bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">
-                                {item.confidence}% match
+                                {isSoilAnalysisResult(snapshot.data) ? 
+                                `${snapshot.data.confidence}% match` : 'N/A'}
                               </div>
                             </div>
                           </div>
