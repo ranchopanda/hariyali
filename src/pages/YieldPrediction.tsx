@@ -57,13 +57,16 @@ const YieldPrediction = () => {
       
       // Store prediction data
       await storeAnalysisData({
-        confidence: result.confidence,
-        recommendations: result.recommendations,
-        crop_type: crop,
-        soil_type: soilType,
-        predicted_yield: result.predictedYield,
-        potential_income: result.potentialIncome
-      }, "yield_prediction");
+        data: {
+          crop_type: crop,
+          soil_type: soilType,
+          predicted_yield: result.predictedYield,
+          potential_income: result.potentialIncome,
+          confidence: result.confidence,
+          recommendations: result.recommendations,
+        },
+        type: "yield_prediction"
+      });
 
       toast({
         title: "Prediction Complete",

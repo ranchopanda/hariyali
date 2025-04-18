@@ -10,7 +10,7 @@ import CallToAction from "@/components/CallToAction";
 import CustomFooter from "@/components/CustomFooter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Leaf, Map, CloudRain, BarChart3, Thermometer, Camera, LayoutGrid, Seedling, Sprout } from "lucide-react";
+import { Leaf, Map, CloudRain, BarChart3, Thermometer, Camera, LayoutGrid, Wheat, Sprout } from "lucide-react";
 
 const Index = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -24,14 +24,14 @@ const Index = () => {
     {
       name: "Rice",
       description: "India's staple food crop, grown mainly in the monsoon season.",
-      icon: <Seedling className="h-10 w-10 text-kisan-green dark:text-kisan-gold" />,
+      icon: <Sprout className="h-10 w-10 text-kisan-green dark:text-kisan-gold" />,
       image: "https://source.unsplash.com/random/300x200/?rice,paddy",
       action: () => navigate("/crop-info")
     },
     {
       name: "Wheat",
       description: "A major rabi crop grown during winter months across northern India.",
-      icon: <Leaf className="h-10 w-10 text-kisan-green dark:text-kisan-gold" />,
+      icon: <Wheat className="h-10 w-10 text-kisan-green dark:text-kisan-gold" />,
       image: "https://source.unsplash.com/random/300x200/?wheat",
       action: () => navigate("/crop-info")
     },
@@ -45,7 +45,7 @@ const Index = () => {
     {
       name: "Sugarcane",
       description: "Perennial crop that's vital for sugar production and byproducts.",
-      icon: <Seedling className="h-10 w-10 text-kisan-green dark:text-kisan-gold" />,
+      icon: <Leaf className="h-10 w-10 text-kisan-green dark:text-kisan-gold" />,
       image: "https://source.unsplash.com/random/300x200/?sugarcane",
       action: () => navigate("/crop-info")
     }
