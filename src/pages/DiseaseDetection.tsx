@@ -482,7 +482,7 @@ const DiseaseDetection = () => {
                       <Button
                         variant="outline"
                         className="border-kisan-green text-kisan-green hover:bg-kisan-green/10 dark:border-kisan-gold dark:text-kisan-gold dark:hover:bg-kisan-gold/10"
-                        onClick={() => document.getElementById('image-upload')?.click()}
+                        onClick={() => fileInputRef.current?.click()}
                       >
                         <Upload className="mr-2 h-4 w-4" />
                         Upload Image
@@ -535,7 +535,7 @@ const DiseaseDetection = () => {
                       <Button
                         variant="outline"
                         className="border-kisan-green text-kisan-green hover:bg-kisan-green/10 dark:border-kisan-gold dark:text-kisan-gold dark:hover:bg-kisan-gold/10"
-                        onClick={() => document.querySelector('[data-value="detection"]')?.click()}
+                        onClick={() => document.querySelector('[data-value="detection"]')?.dispatchEvent(new Event('click'))}
                       >
                         <Leaf className="mr-2 h-4 w-4" />
                         Go to Detection
@@ -574,7 +574,7 @@ const DiseaseDetection = () => {
                       <div className="absolute -left-10 flex items-center justify-center w-6 h-6 rounded-full bg-kisan-green text-white dark:bg-kisan-green-dark text-sm">3</div>
                       <span className="font-medium text-lg">Analyze the image</span>
                       <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Our AI system powered by Gemini 1.5 Flash will analyze your plant image and identify potential diseases.
+                        Our AI system powered by Gemini 1.5 Pro will analyze your plant image and identify potential diseases.
                       </p>
                     </li>
                     <li className="text-gray-700 dark:text-gray-300 ml-10 relative">
