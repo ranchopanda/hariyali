@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -12,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, BarChart3, Droplets, Thermometer, Leaf, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { predictYield, storeAnalysisData } from "@/utils/geminiAI";
+import { saveFarmSnapshot } from "@/utils/farmDataSnapshots";
 
 const YieldPrediction = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -56,8 +56,8 @@ const YieldPrediction = () => {
       setPrediction(result);
       
       // Store prediction data
-      await storeAnalysisData({
-        data: {
+      await storeAnalysisData(
+        {
           crop_type: crop,
           soil_type: soilType,
           predicted_yield: result.predictedYield,
@@ -65,8 +65,8 @@ const YieldPrediction = () => {
           confidence: result.confidence,
           recommendations: result.recommendations,
         },
-        type: "yield_prediction"
-      });
+        "yield_prediction"
+      );
 
       toast({
         title: "Prediction Complete",

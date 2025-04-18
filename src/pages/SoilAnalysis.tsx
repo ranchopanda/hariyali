@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -19,7 +18,7 @@ import {
   storeAnalysisData, 
   getAnalysisHistory 
 } from "@/utils/geminiAI";
-import { saveFarmSnapshot, getFarmSnapshots, FarmDataSnapshotRow } from "@/utils/farmDataSnapshots";
+import { saveFarmSnapshot, getFarmSnapshots, FarmDataSnapshot } from "@/utils/farmDataSnapshots";
 
 function isSoilAnalysisResult(data: unknown): data is SoilAnalysisResult {
   return (
@@ -53,7 +52,7 @@ const SoilAnalysis = () => {
   const [result, setResult] = useState<SoilAnalysisResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [snapshots, setSnapshots] = useState<FarmDataSnapshotRow[]>([]);
+  const [snapshots, setSnapshots] = useState<FarmDataSnapshot[]>([]);
   const [loadingSnapshots, setLoadingSnapshots] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -109,15 +108,12 @@ const SoilAnalysis = () => {
     setLoading(true);
     
     try {
-      // Convert image to base64
       const base64Image = await imageToBase64(image);
       
-      // Analyze with Gemini
       const analysisResult = await analyzeSoil(base64Image);
       
       setResult(analysisResult);
       
-      // Store the result
       await storeAnalysisData(analysisResult, "soil_analysis");
       
     } catch (error: unknown) {

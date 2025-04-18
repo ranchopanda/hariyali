@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 
 // Define the structure of farm data snapshots
 export interface FarmDataSnapshot {
@@ -11,20 +12,22 @@ export interface FarmDataSnapshot {
   data: any;
 }
 
+// Use the Database types for better type safety
+export type FarmDataSnapshotRow = Database['public']['Tables']['farm_data_snapshots']['Row'];
+
 export const saveFarmSnapshot = async (snapshot: Omit<FarmDataSnapshot, "id" | "created_at">) => {
   try {
     const { data, error } = await supabase
       .from("farm_data_snapshots")
       .insert(snapshot)
-      .select()
-      .single();
+      .select();
 
     if (error) {
       console.error("Error saving farm snapshot:", error);
       throw error;
     }
 
-    return data;
+    return data?.[0] || null;
   } catch (error) {
     console.error("Error in saveFarmSnapshot:", error);
     throw error;
@@ -50,7 +53,7 @@ export const getFarmSnapshots = async (userId: string, type?: string) => {
       throw error;
     }
 
-    return data;
+    return data || [];
   } catch (error) {
     console.error("Error in getFarmSnapshots:", error);
     throw error;
