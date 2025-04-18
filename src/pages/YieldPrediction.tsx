@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -55,18 +56,34 @@ const YieldPrediction = () => {
 
       setPrediction(result);
       
-      // Store prediction data
+      // Store prediction data with fixed structure to match AnalysisData interface
       await storeAnalysisData(
         {
-          crop_type: crop,
+          confidence: result.confidence,
+          recommendations: result.recommendations,
           soil_type: soilType,
           predicted_yield: result.predictedYield,
           potential_income: result.potentialIncome,
-          confidence: result.confidence,
-          recommendations: result.recommendations,
+          crop_type: crop
         },
         "yield_prediction"
       );
+
+      // Also save the data in our Supabase database
+      await saveFarmSnapshot({
+        user_id: "anonymous", // In a real app, this would be the user's ID
+        type: "yield_prediction",
+        timestamp: new Date().toISOString(),
+        data: {
+          crop,
+          area,
+          soilType,
+          rainfall,
+          temperature,
+          disease: disease || "none",
+          result
+        }
+      });
 
       toast({
         title: "Prediction Complete",

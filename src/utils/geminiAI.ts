@@ -477,6 +477,9 @@ interface AnalysisData {
   treatment?: string[];
   ph_level?: string;
   nutrients?: Array<{name: string; level: string; recommendation: string}>;
+  crop_type?: string;
+  predicted_yield?: number;
+  potential_income?: number;
   timestamp: string;
   type: string;
 }
