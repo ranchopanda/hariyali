@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +5,7 @@ import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle, Leaf, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle, Leaf, CheckCircle2, BarChart4, TrendingDown, Virus, Wind } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CameraCapture from "@/components/CameraCapture";
@@ -20,6 +19,12 @@ interface DetectionResult {
   description: string;
   recommendations: string[];
   treatment: string[];
+  severity: string;
+  crop_type: string;
+  yield_impact: string;
+  spread_risk: string;
+  recovery_chance: string;
+  bounding_boxes?: {x: number, y: number, width: number, height: number}[];
 }
 
 interface AnalysisData extends DetectionResult {
@@ -102,7 +107,7 @@ const DiseaseDetection = () => {
       
       toast({
         title: "Analysis Complete",
-        description: `Detected: ${analysisResult.disease_name}`,
+        description: `Detected: ${analysisResult.disease_name} on ${analysisResult.crop_type}`,
         variant: "default",
       });
       
@@ -162,6 +167,47 @@ const DiseaseDetection = () => {
     return (
       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${color}`}>
         {confidence}% confidence
+      </span>
+    );
+  };
+
+  const renderSeverityBadge = (severity: string) => {
+    let color = "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+    
+    if (severity === "Severe") {
+      color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    } else if (severity === "Moderate") {
+      color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+    } else if (severity === "Mild") {
+      color = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    }
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${color}`}>
+        {severity} severity
+      </span>
+    );
+  };
+
+  const renderRiskBadge = (risk: string, type: string) => {
+    let color = "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+    let icon = null;
+    
+    if (risk === "High") {
+      color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      icon = type === "spread" ? <Wind className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />;
+    } else if (risk === "Medium") {
+      color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+      icon = type === "spread" ? <Wind className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />;
+    } else if (risk === "Low") {
+      color = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      icon = type === "spread" ? <Wind className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />;
+    }
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${color}`}>
+        {icon}
+        {type === "spread" ? `${risk} spread risk` : `${risk} recovery chance`}
       </span>
     );
   };
@@ -342,21 +388,35 @@ const DiseaseDetection = () => {
                   {result ? (
                     <Card className="overflow-hidden border-none shadow-lg">
                       <CardHeader className="bg-gray-50 dark:bg-gray-800 p-4 border-b dark:border-gray-700">
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="text-lg">Detection Results</CardTitle>
-                          <div>
-                            {renderConfidenceBadge(result.confidence)}
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-lg">{result.crop_type}</CardTitle>
+                            <div>
+                              {renderConfidenceBadge(result.confidence)}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {renderSeverityBadge(result.severity)}
+                            {renderRiskBadge(result.spread_risk, "spread")}
+                            {renderRiskBadge(result.recovery_chance, "recovery")}
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
                         <div className="p-4 bg-kisan-green/10 dark:bg-kisan-green/20 border-b dark:border-gray-700">
                           <div className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-kisan-green dark:text-kisan-gold" />
+                            <Virus className="h-5 w-5 text-kisan-green dark:text-kisan-gold" />
                             <h4 className="font-semibold text-xl text-kisan-green dark:text-kisan-gold">
                               {result.disease_name}
                             </h4>
                           </div>
+                          
+                          {result.yield_impact && (
+                            <div className="mt-2 flex items-center text-sm text-gray-600 dark:text-gray-400">
+                              <BarChart4 className="h-4 w-4 mr-1 text-amber-600 dark:text-amber-400" />
+                              <span>Potential yield impact: <strong>{result.yield_impact}</strong></span>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="p-6 space-y-6">
@@ -436,7 +496,6 @@ const DiseaseDetection = () => {
                             <FeedbackForm 
                               analysisId={result.disease_name}
                               onSubmit={async (isHelpful, comment) => {
-                                // TODO: Implement feedback submission to Supabase
                                 console.log('Feedback:', {isHelpful, comment});
                               }}
                             />
