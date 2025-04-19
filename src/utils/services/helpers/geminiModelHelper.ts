@@ -1,0 +1,30 @@
+
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { API_KEYS, SAFETY_SETTINGS } from "../config/geminiConfig";
+
+export const createGeminiModel = (apiKey: string) => {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({ 
+    model: "gemini-1.5-pro",
+    safetySettings: SAFETY_SETTINGS,
+  });
+};
+
+export const tryWithApiKeys = async <T>(
+  operation: (apiKey: string) => Promise<T>,
+  fallback: T
+): Promise<T> => {
+  let lastError = null;
+  
+  for (const apiKey of API_KEYS) {
+    try {
+      return await operation(apiKey);
+    } catch (apiError) {
+      console.error(`API key attempt failed:`, apiError);
+      lastError = apiError;
+    }
+  }
+  
+  console.error("All API keys failed:", lastError);
+  return fallback;
+};
