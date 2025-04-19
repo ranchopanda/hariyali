@@ -9,6 +9,8 @@ export {
 } from './services/geminiAIService';
 export type { 
   AnalysisData,
+} from './types/analysisTypes';
+export type {
   SoilAnalysisResult,
   YieldPredictionResult,
   GitErrorAnalysisResult

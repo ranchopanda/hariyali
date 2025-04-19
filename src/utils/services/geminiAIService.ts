@@ -1,6 +1,34 @@
-
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-import { SoilAnalysisResult, YieldPredictionResult } from '../types/analysisTypes';
+import { AnalysisData } from '../types/analysisTypes';
+
+// Export the types we need
+export interface SoilAnalysisResult {
+  soil_type: string;
+  confidence: number;
+  ph_level: string;
+  nutrients: {
+    name: string;
+    level: "Low" | "Medium" | "High";
+    recommendation: string;
+  }[];
+  recommendations: string[];
+}
+
+export interface YieldPredictionResult {
+  predictedYield: number;
+  yieldUnit: string;
+  confidence: number;
+  potentialIncome: number;
+  recommendations: string[];
+  diseaseLossPercent?: number;
+}
+
+export interface GitErrorAnalysisResult {
+  error: string;
+  analysis: string;
+  suggestedCommands: string[];
+  confidence: number;
+}
 
 // Mock key for testing (should be replaced with proper key management in production)
 const API_KEYS = [
@@ -165,13 +193,6 @@ export const analyzeSoil = async (base64Image: string): Promise<SoilAnalysisResu
   // This is a placeholder that needs to be implemented
   throw new Error("Soil analysis not implemented yet");
 };
-
-export interface GitErrorAnalysisResult {
-  error: string;
-  analysis: string;
-  suggestedCommands: string[];
-  confidence: number;
-}
 
 export const analyzeGitError = async (errorMessage: string): Promise<GitErrorAnalysisResult> => {
   // For now, implement a mock response
