@@ -166,10 +166,58 @@ export const analyzeSoil = async (base64Image: string): Promise<SoilAnalysisResu
   throw new Error("Soil analysis not implemented yet");
 };
 
-export const analyzeGitError = async (errorMessage: string) => {
-  // Implementation for Git error analysis
-  // This is a placeholder that needs to be implemented
-  throw new Error("Git error analysis not implemented yet");
+export interface GitErrorAnalysisResult {
+  analysis: string;
+  suggestedCommands: string[];
+  confidence: number;
+}
+
+export const analyzeGitError = async (errorMessage: string): Promise<GitErrorAnalysisResult> => {
+  // For now, implement a mock response
+  console.log("Analyzing git error:", errorMessage);
+  
+  try {
+    // In a real implementation, you would use the Gemini AI to analyze the error
+    // Mock implementation for testing
+    if (errorMessage.includes("remote rejected") || errorMessage.includes("behind")) {
+      return {
+        analysis: "Your local branch is behind the remote branch. You need to pull the latest changes before pushing.",
+        suggestedCommands: [
+          "git pull origin main",
+          "git pull --rebase origin main",
+          "git fetch && git merge origin/main"
+        ],
+        confidence: 90
+      };
+    } else if (errorMessage.includes("conflict")) {
+      return {
+        analysis: "There are merge conflicts that need to be resolved.",
+        suggestedCommands: [
+          "git status",
+          "git pull",
+          "git mergetool"
+        ],
+        confidence: 85
+      };
+    } else {
+      return {
+        analysis: "This appears to be a generic Git error. Try checking your connection and repository status.",
+        suggestedCommands: [
+          "git status",
+          "git remote -v",
+          "git fetch"
+        ],
+        confidence: 60
+      };
+    }
+  } catch (error) {
+    console.error("Error analyzing git error:", error);
+    return {
+      analysis: "Unable to analyze the error. Please check your git status manually.",
+      suggestedCommands: ["git status", "git remote -v"],
+      confidence: 30
+    };
+  }
 };
 
 export const predictYield = async (

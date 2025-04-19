@@ -1,4 +1,5 @@
-import { analyzeGitError } from './geminiAI';
+
+import { analyzeGitError, GitErrorAnalysisResult } from './services/geminiAIService';
 
 export interface GitErrorAnalysisResult {
   error: string;
