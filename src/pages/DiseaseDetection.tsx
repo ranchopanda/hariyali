@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 import CustomFooter from "@/components/CustomFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle, Leaf, CheckCircle2, BarChart4, TrendingDown, Virus, Wind } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Loader2, Info, ArrowRight, X, AlertTriangle, Leaf, CheckCircle2, BarChart4, TrendingDown, Wind } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CameraCapture from "@/components/CameraCapture";

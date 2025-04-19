@@ -312,7 +312,7 @@ export interface AnalysisResult {
   recommendations: string[];
 }
 
-// Analyze plant disease using Gemini
+// Analyze plant disease using Gemini with improved retry logic
 export const analyzePlantDisease = async (imageBase64: string): Promise<{
   disease_name: string;
   confidence: number;
@@ -335,37 +335,37 @@ export const analyzePlantDisease = async (imageBase64: string): Promise<{
     try {
       console.log("Attempting real Gemini API analysis");
       
-      const prompt = `You are an expert plant pathologist with deep knowledge of crop diseases worldwide. 
-      Analyze this plant image in detail and provide a comprehensive assessment.
-
-      Please identify:
-      1. The specific crop type visible in the image
-      2. The exact disease name affecting the plant (be as specific as possible with scientific name if relevant)
-      3. Detailed description of visible symptoms and characteristics
-      4. Your confidence level in this diagnosis (0-100%)
-      5. Disease severity (Mild, Moderate, Severe)
-      6. 3-5 specific chemical treatment recommendations with dosages if possible
-      7. 3-5 organic/eco-friendly treatment alternatives
-      8. Estimated yield impact percentage if left untreated
-      9. Risk of spread to other plants (Low, Medium, High)
-      10. Chance of recovery with proper treatment (Low, Medium, High)
+      const prompt = `You are a professional agricultural scientist specializing in plant pathology and crop diseases.
       
-      Format your response STRICTLY as JSON with these keys:
+      Analyze this plant image in detail and provide a comprehensive disease assessment with high accuracy.
+
+      Requirements:
+      1. Identify the specific crop type with scientific name if possible
+      2. Identify the exact disease name affecting the plant (be specific and accurate)
+      3. Describe the visible symptoms in detail
+      4. Rate your confidence in the diagnosis (0-100%)
+      5. Assess disease severity (Mild/Moderate/Severe)
+      6. Recommend specific treatment options (both chemical and organic)
+      7. Suggest preventive measures
+      8. Estimate yield impact if untreated
+      9. Assess the risk of disease spread to other plants
+      10. Evaluate chances of recovery with proper treatment
+      
+      Format your response STRICTLY as valid JSON with ONLY these keys:
       {
-        "disease_name": "Full disease name",
-        "crop_type": "Crop species/type",
-        "confidence": 0-100 number only,
+        "disease_name": "Full scientific disease name",
+        "crop_type": "Crop name",
+        "confidence": number (0-100),
         "description": "Detailed symptom description",
         "severity": "Mild/Moderate/Severe",
-        "treatment": ["Chemical treatment 1", "Chemical treatment 2", ...],
-        "organic_treatment": ["Organic option 1", "Organic option 2", ...],
+        "treatment": ["Treatment option 1", "Treatment option 2", ...],
         "recommendations": ["Prevention measure 1", "Prevention measure 2", ...],
-        "yield_impact": "Estimated yield loss percentage or range",
+        "yield_impact": "Estimated yield loss percentage",
         "spread_risk": "Low/Medium/High",
         "recovery_chance": "Low/Medium/High"
       }
       
-      Be concise but thorough in your analysis. If you cannot determine any field with certainty, make your best estimation based on visible evidence.`;
+      IMPORTANT: Your response must be VALID JSON with no markdown formatting, preamble or extra text.`;
       
       const imageParts = [
         {
@@ -376,53 +376,86 @@ export const analyzePlantDisease = async (imageBase64: string): Promise<{
         }
       ];
       
-      const response = await Promise.race([
-        model.generateContent([prompt, ...imageParts]),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Gemini API timeout")), 12000))
-      ]);
+      // Try all API keys if needed
+      let result = null;
+      let apiError = null;
       
-      if (response instanceof Error) throw response;
-      
-      const result = await response.response;
-      const text = result.text();
-      
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const analysis = JSON.parse(jsonMatch[0]);
-          console.log("Successful Gemini API analysis:", analysis);
+      // Try all available API keys
+      for (let keyIndex = 0; keyIndex < API_KEYS.length; keyIndex++) {
+        try {
+          await initializeModel(keyIndex);
+          console.log(`Trying API key ${keyIndex + 1} of ${API_KEYS.length}`);
           
-          const treatments = [
-            ...(analysis.treatment || []),
-            ...(analysis.organic_treatment?.map(t => `(Organic) ${t}`) || [])
-          ];
+          const responsePromise = model.generateContent([prompt, ...imageParts]);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Gemini API timeout")), 15000)
+          );
           
-          return {
-            disease_name: analysis.disease_name,
-            crop_type: analysis.crop_type || "Unknown crop",
-            confidence: analysis.confidence || 85,
-            description: analysis.description,
-            severity: analysis.severity || "Moderate",
-            recommendations: analysis.recommendations || [],
-            treatment: treatments.length > 0 ? treatments : ["No specific treatment data available"],
-            yield_impact: analysis.yield_impact || "Unknown impact",
-            spread_risk: analysis.spread_risk || "Medium",
-            recovery_chance: analysis.recovery_chance || "Medium",
-            bounding_boxes: analysis.bounding_boxes || undefined
-          };
-        } else {
-          throw new Error("No valid JSON in Gemini response");
+          const response = await Promise.race([responsePromise, timeoutPromise]);
+          if (response instanceof Error) throw response;
+          
+          const generatedResult = await response.response;
+          const text = generatedResult.text();
+          
+          // Find valid JSON in the response
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const jsonStr = jsonMatch[0];
+            try {
+              result = JSON.parse(jsonStr);
+              console.log("Successfully parsed Gemini API response");
+              break; // Success, exit the loop
+            } catch (parseError) {
+              console.warn(`Failed to parse JSON from API key ${keyIndex + 1}:`, parseError);
+              apiError = parseError;
+            }
+          } else {
+            console.warn(`No valid JSON found in response from API key ${keyIndex + 1}`);
+            apiError = new Error("No valid JSON in Gemini response");
+          }
+        } catch (error) {
+          console.warn(`API key ${keyIndex + 1} failed:`, error);
+          apiError = error;
         }
-      } catch (parseError) {
-        console.warn("Failed to parse Gemini response, falling back to local analysis:", parseError);
-        throw parseError;
+      }
+      
+      if (result) {
+        console.log("Successful Gemini API analysis:", result);
+        
+        const treatments = result.treatment || [];
+        
+        return {
+          disease_name: result.disease_name || "Unknown disease",
+          crop_type: result.crop_type || "Unknown crop",
+          confidence: typeof result.confidence === 'number' ? result.confidence : 85,
+          description: result.description || "No description available",
+          severity: result.severity || "Moderate",
+          recommendations: result.recommendations || [],
+          treatment: treatments.length > 0 ? treatments : ["No specific treatment data available"],
+          yield_impact: result.yield_impact || "Unknown impact",
+          spread_risk: result.spread_risk || "Medium",
+          recovery_chance: result.recovery_chance || "Medium"
+        };
+      } else {
+        throw apiError || new Error("All API keys failed");
       }
       
     } catch (geminiError) {
       console.warn("Gemini API analysis failed, using local fallback:", geminiError);
       
+      // Enhanced fallback mechanism
       const cropDisease = getCropDiseaseFromImageData(imageBase64);
       console.log("Selected crop disease from local analysis:", cropDisease.name);
+      
+      // Determine crop type based on disease name
+      let cropType = "Unknown crop";
+      for (const [crop, diseases] of Object.entries(CROP_DISEASES)) {
+        if (crop === 'healthy') continue;
+        if ((diseases as any[]).some(d => d.name === cropDisease.name)) {
+          cropType = crop.charAt(0).toUpperCase() + crop.slice(1);
+          break;
+        }
+      }
       
       const severityMap: {[key: number]: string} = {
         0: "Mild",
@@ -442,7 +475,7 @@ export const analyzePlantDisease = async (imageBase64: string): Promise<{
       
       return {
         disease_name: cropDisease.name,
-        crop_type: "Unknown crop",
+        crop_type: cropType,
         confidence: cropDisease.confidence,
         description: cropDisease.description,
         severity: severityMap[severityIndex],
