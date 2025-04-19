@@ -405,7 +405,7 @@ const DiseaseDetection = () => {
                       <CardContent className="p-0">
                         <div className="p-4 bg-kisan-green/10 dark:bg-kisan-green/20 border-b dark:border-gray-700">
                           <div className="flex items-center gap-2">
-                            <Virus className="h-5 w-5 text-kisan-green dark:text-kisan-gold" />
+                            <Leaf className="h-5 w-5 text-kisan-green dark:text-kisan-gold" />
                             <h4 className="font-semibold text-xl text-kisan-green dark:text-kisan-gold">
                               {result.disease_name}
                             </h4>
