@@ -1,629 +1,268 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// API Keys with fallback
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+
+// Define types for our analysis data
+interface AnalysisData {
+  id: string;
+  timestamp: string;
+  type: string;
+  disease_name?: string;
+  confidence?: number;
+  description?: string;
+  recommendations?: string[];
+  treatment?: string[];
+  severity?: string;
+  crop_type?: string;
+  yield_impact?: string;
+  spread_risk?: string;
+  recovery_chance?: string;
+  bounding_boxes?: {x: number, y: number, width: number, height: number}[];
+  [key: string]: any; // Allow other properties
+}
+
+// Mock key for testing (should be replaced with proper key management in production)
 const API_KEYS = [
-  "AIzaSyAnxLXZytFZA-gUYL4Nu8pfIvqcGwHetFU",  // Primary API key
-  "AIzaSyAdD2GXQZaVJXQQJliPaupGfEFfuFzBdwc",
-  "AIzaSyAmc78NU-vGwvjajje2YBD3LI2uYqub3tE"
+  "YOUR_API_KEY_1", // Replace with actual API keys
+  "YOUR_API_KEY_2",
+  "YOUR_API_KEY_3",
 ];
 
-// Common crop diseases and characteristics
-const CROP_DISEASES = {
-  rice: [
-    { name: "Bacterial Leaf Blight", confidence: 85, description: "Yellow to white lesions along the leaf veins", recommendations: ["Use disease-free seeds", "Maintain proper water management", "Apply copper-based fungicides"], treatment: ["Remove infected plants", "Spray streptomycin sulfate", "Ensure balanced fertilization", "Maintain field hygiene"] },
-    { name: "Rice Blast", confidence: 92, description: "Diamond-shaped lesions with grayish centers and brown margins", recommendations: ["Plant resistant varieties", "Avoid excess nitrogen", "Apply fungicides preventively"], treatment: ["Spray triazole fungicides", "Maintain balanced nutrition", "Reduce field density", "Avoid excess nitrogen"] },
-    { name: "Brown Spot", confidence: 88, description: "Oval brown lesions with yellowish halos", recommendations: ["Use certified seeds", "Balanced fertilization", "Fungicide application"], treatment: ["Apply propiconazole", "Correct soil nutrient deficiencies", "Rotate crops", "Remove infected debris"] }
-  ],
-  wheat: [
-    { name: "Leaf Rust", confidence: 89, description: "Orange-brown pustules randomly distributed on leaves", recommendations: ["Plant resistant varieties", "Early sowing", "Fungicide application"], treatment: ["Apply triazole fungicides", "Early harvest if severe", "Proper crop rotation", "Monitor regularly"] },
-    { name: "Powdery Mildew", confidence: 87, description: "White powdery patches on leaves and stems", recommendations: ["Use resistant varieties", "Avoid high nitrogen", "Maintain proper spacing"], treatment: ["Apply sulfur-based fungicides", "Ensure proper ventilation", "Balanced fertilization", "Remove infected parts"] },
-    { name: "Karnal Bunt", confidence: 91, description: "Black spores in grain, fishy smell when crushed", recommendations: ["Use disease-free seeds", "Seed treatment", "Crop rotation"], treatment: ["Apply fungicide seed treatments", "Field sanitation", "Proper storage conditions", "Segregate infected grain"] }
-  ],
-  maize: [
-    { name: "Gray Leaf Spot", confidence: 86, description: "Rectangular gray to tan lesions restricted by leaf veins", recommendations: ["Crop rotation", "Resistant hybrids", "Reduce surface residue"], treatment: ["Apply strobilurin fungicides", "Maintain balanced nutrition", "Time applications at early infection", "Proper irrigation"] },
-    { name: "Northern Corn Leaf Blight", confidence: 90, description: "Long elliptical gray-green lesions", recommendations: ["Plant resistant varieties", "Crop rotation", "Fungicide application"], treatment: ["Apply foliar fungicides", "Remove crop debris", "Proper field drainage", "Balanced fertility"] },
-    { name: "Common Rust", confidence: 89, description: "Circular to elongated cinnamon-brown pustules", recommendations: ["Use resistant hybrids", "Early planting", "Fungicide application"], treatment: ["Apply triazole fungicides", "Monitor regularly", "Maintain plant vigor", "Control humidity"] }
-  ],
-  cotton: [
-    { name: "Bacterial Blight", confidence: 88, description: "Angular water-soaked lesions turning brown", recommendations: ["Use acid-delinted seeds", "Resistant varieties", "Crop rotation"], treatment: ["Copper-based bactericides", "Deep plowing after harvest", "Proper plant spacing", "Balanced irrigation"] },
-    { name: "Verticillium Wilt", confidence: 87, description: "Yellowing between veins, brown vascular tissue", recommendations: ["Plant resistant varieties", "Crop rotation", "Maintain proper soil pH"], treatment: ["No effective chemical control", "Remove infected plants", "Maintain optimal soil moisture", "Avoid excessive nitrogen"] },
-    { name: "Alternaria Leaf Spot", confidence: 86, description: "Brown circular spots with concentric rings", recommendations: ["Use disease-free seeds", "Proper spacing", "Fungicide application"], treatment: ["Apply mancozeb", "Maintain balanced nutrition", "Avoid leaf wetness", "Control insects"] }
-  ],
-  jute: [
-    { name: "Stem Rot", confidence: 85, description: "Water-soaked patches at base turning brown", recommendations: ["Seed treatment", "Crop rotation", "Avoid waterlogging"], treatment: ["Drench with carbendazim", "Improve drainage", "Adjust planting time", "Remove infected plants"] },
-    { name: "Anthracnose", confidence: 86, description: "Black sunken lesions on stems and leaves", recommendations: ["Use resistant varieties", "Seed treatment", "Proper spacing"], treatment: ["Apply copper oxychloride", "Maintain field sanitation", "Balanced fertilization", "Proper irrigation"] },
-    { name: "Black Band", confidence: 84, description: "Black lesions encircling the stem", recommendations: ["Seed treatment", "Crop rotation", "Balanced fertilization"], treatment: ["Apply mancozeb", "Proper drainage", "Remove infected debris", "Clean farm implements"] }
-  ],
-  sugarcane: [
-    { name: "Red Rot", confidence: 89, description: "Red discoloration inside split stalks with white patches", recommendations: ["Use disease-free sets", "Resistant varieties", "Hot water treatment"], treatment: ["Remove infected plants", "Avoid ratooning infected crop", "Ensure proper drainage", "Balanced fertilization"] },
-    { name: "Smut", confidence: 87, description: "Black whip-like structures emerging from growing point", recommendations: ["Heat therapy for setts", "Resistant varieties", "Remove infected plants"], treatment: ["Rogue out infected plants", "Avoid ratooning infected crop", "Clean farm tools", "Fungicide dips for setts"] },
-    { name: "Leaf Scald", confidence: 86, description: "White pencil-line streak with red margin", recommendations: ["Disease-free planting material", "Resistant varieties", "Hot water treatment"], treatment: ["Remove infected plants", "Disinfect cutting tools", "Avoid overhead irrigation", "Plant quarantine"] }
-  ],
-  sesame: [
-    { name: "Phytophthora Blight", confidence: 83, description: "Water-soaked lesions on stem base and leaves", recommendations: ["Use raised beds", "Crop rotation", "Seed treatment"], treatment: ["Apply metalaxyl", "Improve drainage", "Early planting", "Balanced fertilization"] },
-    { name: "Bacterial Leaf Spot", confidence: 84, description: "Angular water-soaked lesions turning brown", recommendations: ["Use disease-free seeds", "Crop rotation", "Copper sprays"], treatment: ["Apply streptocycline", "Remove infected debris", "Adjust plant spacing", "Avoid overhead irrigation"] },
-    { name: "Alternaria Leaf Spot", confidence: 86, description: "Circular brown spots with concentric rings", recommendations: ["Seed treatment", "Crop rotation", "Timely harvesting"], treatment: ["Apply mancozeb", "Control insects", "Maintain field sanitation", "Balanced nutrition"] }
-  ],
-  groundnut: [
-    { name: "Early Leaf Spot", confidence: 87, description: "Circular dark brown spots with yellow halo", recommendations: ["Use resistant varieties", "Crop rotation", "Fungicide application"], treatment: ["Apply chlorothalonil", "Maintain plant spacing", "Balanced fertilization", "Remove volunteer plants"] },
-    { name: "Late Leaf Spot", confidence: 89, description: "Circular dark brown to black spots", recommendations: ["Resistant varieties", "Crop rotation", "Fungicide application"], treatment: ["Apply tebuconazole", "Proper field sanitation", "Timely harvesting", "Balanced nutrition"] },
-    { name: "Collar Rot", confidence: 85, description: "Rotting at soil line, yellowing and wilting", recommendations: ["Seed treatment", "Ridge planting", "Crop rotation"], treatment: ["Apply thiram as soil drench", "Improve drainage", "Adjusted planting depth", "Balanced irrigation"] }
-  ],
-  bajra: [
-    { name: "Downy Mildew", confidence: 88, description: "Chlorotic areas on leaves with white downy growth underneath", recommendations: ["Use resistant varieties", "Seed treatment", "Early planting"], treatment: ["Apply metalaxyl", "Remove infected plants", "Maintain field sanitation", "Crop rotation"] },
-    { name: "Ergot", confidence: 86, description: "Sticky honeydew exuding from infected florets", recommendations: ["Use clean seeds", "Proper field sanitation", "Timely sowing"], treatment: ["Remove and destroy sclerotia", "Deep plowing", "Clean farm equipment", "Crop rotation"] },
-    { name: "Rust", confidence: 85, description: "Orange-brown pustules on leaves", recommendations: ["Plant resistant varieties", "Early sowing", "Fungicide application"], treatment: ["Apply triadimefon", "Control alternate hosts", "Maintain plant vigor", "Proper spacing"] }
-  ],
-  jowar: [
-    { name: "Anthracnose", confidence: 86, description: "Circular red spots with yellow margins", recommendations: ["Use resistant varieties", "Crop rotation", "Seed treatment"], treatment: ["Apply carbendazim", "Remove infected debris", "Balanced fertilization", "Proper spacing"] },
-    { name: "Grain Mold", confidence: 87, description: "Pink, black or white mold growth on grain", recommendations: ["Early maturing varieties", "Timely harvesting", "Avoid rain at maturity"], treatment: ["No effective control after infection", "Harvest at physiological maturity", "Proper drying", "Storage with low humidity"] },
-    { name: "Charcoal Rot", confidence: 85, description: "Lodging, shredding of stalk with tiny black sclerotia", recommendations: ["Avoid water stress", "Balanced fertilization", "Crop rotation"], treatment: ["Adequate irrigation", "Avoid high plant density", "Proper fertility", "Resistant varieties"] }
-  ],
-  healthy: [
-    { name: "Healthy Plant", confidence: 95, description: "Plant shows no signs of disease. Leaves are vibrant green with no spots, lesions, or discoloration. Stems are strong and intact.", recommendations: ["Continue regular monitoring", "Maintain balanced fertilization", "Follow proper irrigation practices"], treatment: ["No treatment needed", "Continue preventive care", "Monitor for early signs of stress", "Maintain field hygiene"] }
-  ]
-};
-
-// Common crop information
-const CROP_INFO = {
-  rice: {
-    scientific_name: "Oryza sativa",
-    growing_season: "Kharif (monsoon)",
-    water_requirements: "High",
-    major_varieties: ["Basmati", "IR-36", "Swarna", "Pusa Basmati"],
-    ideal_climate: "Hot and humid",
-    soil_type: "Clay or clay loam",
-    major_producing_states: ["West Bengal", "Uttar Pradesh", "Punjab", "Tamil Nadu"]
-  },
-  wheat: {
-    scientific_name: "Triticum aestivum",
-    growing_season: "Rabi (winter)",
-    water_requirements: "Medium",
-    major_varieties: ["HD-2967", "PBW-550", "Lok-1", "HUW-234"],
-    ideal_climate: "Cool winter",
-    soil_type: "Loam to clay loam",
-    major_producing_states: ["Uttar Pradesh", "Punjab", "Haryana", "Madhya Pradesh"]
-  },
-  maize: {
-    scientific_name: "Zea mays",
-    growing_season: "Both Kharif and Rabi",
-    water_requirements: "Medium",
-    major_varieties: ["DHM-117", "Ganga-11", "Narmada Moti"],
-    ideal_climate: "Warm with moderate rainfall",
-    soil_type: "Well-drained loamy",
-    major_producing_states: ["Karnataka", "Madhya Pradesh", "Bihar", "Tamil Nadu"]
-  },
-  cotton: {
-    scientific_name: "Gossypium hirsutum",
-    growing_season: "Kharif",
-    water_requirements: "Medium to high",
-    major_varieties: ["Bt Cotton", "DCH-32", "LRA-5166"],
-    ideal_climate: "Warm and dry with moderate rainfall",
-    soil_type: "Deep black soils (regur)",
-    major_producing_states: ["Gujarat", "Maharashtra", "Telangana", "Punjab"]
-  },
-  jute: {
-    scientific_name: "Corchorus olitorius/capsularis",
-    growing_season: "Kharif",
-    water_requirements: "High",
-    major_varieties: ["JRO-524", "JRO-204", "JRC-321"],
-    ideal_climate: "Hot and humid with high rainfall",
-    soil_type: "Loamy or clayey loam",
-    major_producing_states: ["West Bengal", "Bihar", "Assam", "Odisha"]
-  },
-  sugarcane: {
-    scientific_name: "Saccharum officinarum",
-    growing_season: "Year-round (12-18 months cycle)",
-    water_requirements: "Very high",
-    major_varieties: ["Co 86032", "CoC 671", "CoJ 64"],
-    ideal_climate: "Tropical or subtropical",
-    soil_type: "Deep, well-drained loam",
-    major_producing_states: ["Uttar Pradesh", "Maharashtra", "Karnataka", "Tamil Nadu"]
-  },
-  sesame: {
-    scientific_name: "Sesamum indicum",
-    growing_season: "Kharif",
-    water_requirements: "Low to medium",
-    major_varieties: ["Gujarat Til-2", "RT-346", "Uma"],
-    ideal_climate: "Warm and moderately dry",
-    soil_type: "Well-drained sandy loam",
-    major_producing_states: ["West Bengal", "Gujarat", "Rajasthan", "Tamil Nadu"]
-  },
-  groundnut: {
-    scientific_name: "Arachis hypogaea",
-    growing_season: "Kharif and summer",
-    water_requirements: "Medium",
-    major_varieties: ["JL-24", "TAG-24", "TMV-7"],
-    ideal_climate: "Warm with moderate rainfall",
-    soil_type: "Well-drained sandy loam",
-    major_producing_states: ["Gujarat", "Tamil Nadu", "Andhra Pradesh", "Karnataka"]
-  },
-  bajra: {
-    scientific_name: "Pennisetum glaucum",
-    growing_season: "Kharif",
-    water_requirements: "Low",
-    major_varieties: ["HHB-67", "Pusa-23", "ICTP-8203"],
-    ideal_climate: "Hot and dry",
-    soil_type: "Sandy to loamy sand",
-    major_producing_states: ["Rajasthan", "Gujarat", "Uttar Pradesh", "Haryana"]
-  },
-  jowar: {
-    scientific_name: "Sorghum bicolor",
-    growing_season: "Kharif and Rabi",
-    water_requirements: "Low to medium",
-    major_varieties: ["CSV-17", "CSV-20", "M 35-1"],
-    ideal_climate: "Semi-arid",
-    soil_type: "Well-drained loamy soil",
-    major_producing_states: ["Maharashtra", "Karnataka", "Tamil Nadu", "Andhra Pradesh"]
-  }
-};
-
-// Initialize Gemini client with retry logic
-let currentKeyIndex = 0;
-let genAI = new GoogleGenerativeAI(API_KEYS[currentKeyIndex]);
-let model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
-
-async function initializeModel(keyIndex = 0) {
-  currentKeyIndex = keyIndex;
-  genAI = new GoogleGenerativeAI(API_KEYS[currentKeyIndex]);
-  model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
-}
-
-// Validate base64 image
-function validateBase64Image(base64: string) {
-  if (!base64 || base64.length < 100) {
-    throw new Error("Invalid image data: too short");
-  }
-  if (!base64.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
-    throw new Error("Invalid base64 image format");
-  }
-}
-
-// Function to convert image to base64
-export const imageToBase64 = async (file: File): Promise<string> => {
+// Convert image file to base64
+export const imageToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      } else {
-        reject(new Error('Failed to convert image to base64'));
-      }
-    };
-    reader.onerror = reject;
     reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64Content = base64String.split(',')[1];
+      resolve(base64Content);
+    };
+    reader.onerror = error => {
+      reject(error);
+    };
   });
 };
 
-// Enhanced image analysis functions
-function calculateBrightness(imageBase64: string): number {
-  let sum = 0;
-  for (let i = 0; i < Math.min(1500, imageBase64.length); i += 8) {
-    sum += imageBase64.charCodeAt(i);
-  }
-  return sum % 1000;
-}
-
-function calculateGreenIntensity(imageBase64: string): number {
-  let greenSum = 0;
-  for (let i = 0; i < Math.min(2500, imageBase64.length); i += 15) {
-    const charCode = imageBase64.charCodeAt(i);
-    if ((charCode % 4 === 1) || (charCode % 7 === 3)) {
-      greenSum += charCode;
-    }
-  }
-  return greenSum % 1000;
-}
-
-function calculateTextureComplexity(imageBase64: string): number {
-  let complexity = 0;
-  for (let i = 2; i < Math.min(2000, imageBase64.length); i += 12) {
-    if (i > 1) {
-      complexity += Math.abs(
-        imageBase64.charCodeAt(i) - 
-        imageBase64.charCodeAt(i-1) +
-        imageBase64.charCodeAt(i-2)
-      );
-    }
-  }
-  return complexity % 1000;
-}
-
-// Advanced function to analyze patterns specific to plant diseases
-function detectLeafPatterns(imageBase64: string): {
-  hasSpots: boolean;
-  hasDiscoloration: boolean;
-  hasStripes: boolean;
-  similarity: number;
-} {
-  const spotPattern = /[A-Z]{2,5}[a-z]{2,5}/g;
-  const discolorationPattern = /[0-9]{1,3}[a-zA-Z]{1,3}/g;
-  const stripePattern = /[a-z]{3,7}[A-Z]{1,3}/g;
+// Function to analyze plant disease using Gemini AI
+export const analyzePlantDisease = async (base64Image: string) => {
+  console.log("Starting plant disease analysis with improved model...");
   
-  const sampleSection = imageBase64.substring(100, 2000);
-  
-  const healthyPattern = "ABCDEFGabcdefgHIJKLMNhijklmn";
-  let similarityScore = 0;
-  for (let i = 0; i < Math.min(healthyPattern.length, sampleSection.length); i += 5) {
-    if (healthyPattern[i % healthyPattern.length] === sampleSection[i]) {
-      similarityScore++;
-    }
+  // Validate the image
+  if (!base64Image) {
+    throw new Error("No image provided");
   }
   
-  return {
-    hasSpots: spotPattern.test(sampleSection),
-    hasDiscoloration: discolorationPattern.test(sampleSection),
-    hasStripes: stripePattern.test(sampleSection),
-    similarity: similarityScore * 10
+  console.log("Image validated successfully");
+  
+  // Initialize with a fallback result in case API call fails
+  const fallbackResult = {
+    disease_name: "Unknown Plant Disease",
+    confidence: 50,
+    description: "Unable to analyze the image. The system couldn't identify the disease with sufficient confidence.",
+    recommendations: [
+      "Take another photo with better lighting and focus.",
+      "Ensure the affected area is clearly visible.",
+      "Try capturing different angles of the plant."
+    ],
+    treatment: [
+      "Consult with a local agricultural expert.",
+      "Consider general preventive measures like removing affected leaves.",
+      "Monitor the plant for any changes in symptoms."
+    ],
+    severity: "Unknown",
+    crop_type: "Unknown Plant",
+    yield_impact: "Unknown",
+    spread_risk: "Medium",
+    recovery_chance: "Medium"
   };
-}
 
-// Improved helper function to get a crop disease based on image analysis
-function getCropDiseaseFromImageData(imageBase64: string): any {
-  const hashValue = imageBase64.split('').reduce((acc, char, idx) => {
-    return acc + (char.charCodeAt(0) * (((idx % 9) + 1) * 17)) % 1000;
-  }, 0);
-
-  const brightValue = calculateBrightness(imageBase64);
-  const greenValue = calculateGreenIntensity(imageBase64);
-  const textureValue = calculateTextureComplexity(imageBase64);
-  const leafPatterns = detectLeafPatterns(imageBase64);
-  
-  const isHealthyPlant = greenValue > 550 && 
-                         textureValue < 350 && 
-                         leafPatterns.similarity > 60 &&
-                         !leafPatterns.hasSpots &&
-                         !leafPatterns.hasDiscoloration;
-                         
-  if (isHealthyPlant) {
-    return CROP_DISEASES.healthy[0];
-  }
-  
-  const cropTypes = Object.keys(CROP_DISEASES).filter(crop => crop !== 'healthy');
-  
-  const cropIndex = Math.abs((hashValue + brightValue + greenValue) % cropTypes.length);
-  const cropType = cropTypes[cropIndex] as keyof typeof CROP_DISEASES;
-  
-  const diseases = CROP_DISEASES[cropType];
-  
-  let diseaseIndex: number;
-  
-  if (leafPatterns.hasSpots && !leafPatterns.hasStripes) {
-    diseaseIndex = 0;
-  } else if (leafPatterns.hasDiscoloration && !leafPatterns.hasSpots) {
-    diseaseIndex = 1;
-  } else if (leafPatterns.hasStripes || (leafPatterns.hasDiscoloration && leafPatterns.hasSpots)) {
-    diseaseIndex = 2;
-  } else {
-    diseaseIndex = Math.floor((brightValue * textureValue + greenValue) % diseases.length);
-  }
-  
-  diseaseIndex = diseaseIndex % diseases.length;
-  
-  return diseases[diseaseIndex];
-}
-
-// Gemini API integration for image analysis
-export interface AnalysisResult {
-  result: string;
-  confidence: number;
-  description: string;
-  recommendations: string[];
-}
-
-// Analyze plant disease using Gemini with improved retry logic
-export const analyzePlantDisease = async (imageBase64: string): Promise<{
-  disease_name: string;
-  confidence: number;
-  description: string;
-  recommendations: string[];
-  treatment: string[];
-  severity: string;
-  crop_type: string;
-  yield_impact: string;
-  spread_risk: string;
-  recovery_chance: string;
-  bounding_boxes?: {x: number, y: number, width: number, height: number}[];
-}> => {
+  // Try to use real Gemini API analysis
   try {
-    console.log("Starting plant disease analysis with improved model...");
+    console.log("Attempting real Gemini API analysis");
     
-    validateBase64Image(imageBase64);
-    console.log("Image validated successfully");
+    // Try each API key until one works
+    let result = null;
+    let lastError = null;
+    
+    for (let i = 0; i < API_KEYS.length; i++) {
+      const apiKey = API_KEYS[i];
+      console.log(`Trying API key ${i + 1} of ${API_KEYS.length}`);
+      
+      try {
+        // Initialize the Gemini API with the current key
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-1.5-pro",
+          safetySettings: [
+            {
+              category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+              threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            },
+            {
+              category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+              threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            },
+            {
+              category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+              threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            },
+            {
+              category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+              threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            },
+          ],
+        });
 
-    try {
-      console.log("Attempting real Gemini API analysis");
-      
-      const prompt = `You are a professional agricultural scientist specializing in plant pathology and crop diseases.
-      
-      Analyze this plant image in detail and provide a comprehensive disease assessment with high accuracy.
+        // Prompt engineering for comprehensive plant disease analysis
+        const prompt = `
+You are PlantDoctorAI, an expert agricultural system specializing in plant disease detection.
 
-      Requirements:
-      1. Identify the specific crop type with scientific name if possible
-      2. Identify the exact disease name affecting the plant (be specific and accurate)
-      3. Describe the visible symptoms in detail
-      4. Rate your confidence in the diagnosis (0-100%)
-      5. Assess disease severity (Mild/Moderate/Severe)
-      6. Recommend specific treatment options (both chemical and organic)
-      7. Suggest preventive measures
-      8. Estimate yield impact if untreated
-      9. Assess the risk of disease spread to other plants
-      10. Evaluate chances of recovery with proper treatment
-      
-      Format your response STRICTLY as valid JSON with ONLY these keys:
-      {
-        "disease_name": "Full scientific disease name",
-        "crop_type": "Crop name",
-        "confidence": number (0-100),
-        "description": "Detailed symptom description",
-        "severity": "Mild/Moderate/Severe",
-        "treatment": ["Treatment option 1", "Treatment option 2", ...],
-        "recommendations": ["Prevention measure 1", "Prevention measure 2", ...],
-        "yield_impact": "Estimated yield loss percentage",
-        "spread_risk": "Low/Medium/High",
-        "recovery_chance": "Low/Medium/High"
-      }
-      
-      IMPORTANT: Your response must be VALID JSON with no markdown formatting, preamble or extra text.`;
-      
-      const imageParts = [
-        {
-          inlineData: {
-            data: imageBase64,
-            mimeType: "image/jpeg"
-          }
+Analyze this plant image and provide a detailed disease assessment in JSON format with these fields:
+- disease_name: The full scientific name of the disease and pathogen (e.g., "Late Blight caused by Phytophthora infestans")
+- crop_type: The plant species affected
+- confidence: A number from 0-100 representing your confidence level
+- description: A detailed description of the visual symptoms visible in the image
+- severity: "Mild", "Moderate", or "Severe"
+- treatment: An array of 3-5 treatment options (both chemical and organic)
+- recommendations: An array of 5-6 preventive measures and best practices
+- yield_impact: Estimated impact on crop yield if untreated
+- spread_risk: "Low", "Medium", or "High" risk of spreading to other plants
+- recovery_chance: "Low", "Medium", or "High" chance of plant recovery with proper treatment
+
+Format your response as a valid JSON object with these exact fields. Do not include any explanations or text outside the JSON structure.
+        `;
+
+        // Generate content with the image
+        const result = await model.generateContent([
+          prompt,
+          { inlineData: { data: base64Image, mimeType: "image/jpeg" } },
+        ]);
+        
+        const response = await result.response;
+        const text = response.text();
+        
+        // Find the JSON section if it exists - looking for content between ```json and ``` or just a JSON object
+        let jsonStr = text;
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          jsonStr = jsonMatch[1].trim();
         }
-      ];
-      
-      // Try all API keys if needed
-      let result = null;
-      let apiError = null;
-      
-      // Try all available API keys
-      for (let keyIndex = 0; keyIndex < API_KEYS.length; keyIndex++) {
+        
         try {
-          await initializeModel(keyIndex);
-          console.log(`Trying API key ${keyIndex + 1} of ${API_KEYS.length}`);
+          // Parse the JSON response
+          const parsedResult = JSON.parse(jsonStr);
+          console.log("Successfully parsed Gemini API response");
           
-          const responsePromise = model.generateContent([prompt, ...imageParts]);
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Gemini API timeout")), 15000)
-          );
-          
-          const generatedResponse = await Promise.race([responsePromise, timeoutPromise]);
-          if (generatedResponse instanceof Error) throw generatedResponse;
-          
-          // Make sure we're working with the correct response type
-          const generatedResult = generatedResponse.response;
-          const text = generatedResult.text();
-          
-          // Find valid JSON in the response
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const jsonStr = jsonMatch[0];
-            try {
-              result = JSON.parse(jsonStr);
-              console.log("Successfully parsed Gemini API response");
-              break; // Success, exit the loop
-            } catch (parseError) {
-              console.warn(`Failed to parse JSON from API key ${keyIndex + 1}:`, parseError);
-              apiError = parseError;
-            }
-          } else {
-            console.warn(`No valid JSON found in response from API key ${keyIndex + 1}`);
-            apiError = new Error("No valid JSON in Gemini response");
+          // Validate the disease result
+          if (!parsedResult.disease_name) {
+            parsedResult.disease_name = "Unidentified Plant Issue";
           }
-        } catch (error) {
-          console.warn(`API key ${keyIndex + 1} failed:`, error);
-          apiError = error;
+          
+          // Validate and ensure all expected properties exist
+          if (!Array.isArray(parsedResult.recommendations)) {
+            parsedResult.recommendations = fallbackResult.recommendations;
+          }
+          
+          if (!Array.isArray(parsedResult.treatment)) {
+            parsedResult.treatment = fallbackResult.treatment;
+          }
+          
+          if (!parsedResult.severity) {
+            parsedResult.severity = "Unknown";
+          }
+          
+          if (!parsedResult.crop_type) {
+            parsedResult.crop_type = "Unknown Plant";
+          }
+          
+          if (!parsedResult.confidence || typeof parsedResult.confidence !== 'number') {
+            parsedResult.confidence = 50;
+          }
+          
+          if (!parsedResult.yield_impact) {
+            parsedResult.yield_impact = "Unknown";
+          }
+          
+          if (!parsedResult.spread_risk) {
+            parsedResult.spread_risk = "Medium";
+          }
+          
+          if (!parsedResult.recovery_chance) {
+            parsedResult.recovery_chance = "Medium";
+          }
+          
+          console.log("Successful Gemini API analysis:", parsedResult);
+          return parsedResult;
+        } catch (parseError) {
+          console.error("Error parsing Gemini response:", parseError);
+          lastError = parseError;
+          // Continue to next API key
         }
+      } catch (apiError) {
+        console.error(`Error with API key ${i + 1}:`, apiError);
+        lastError = apiError;
+        // Continue to next API key
       }
-      
-      if (result) {
-        console.log("Successful Gemini API analysis:", result);
-        
-        const treatments = result.treatment || [];
-        
-        return {
-          disease_name: result.disease_name || "Unknown disease",
-          crop_type: result.crop_type || "Unknown crop",
-          confidence: typeof result.confidence === 'number' ? result.confidence : 85,
-          description: result.description || "No description available",
-          severity: result.severity || "Moderate",
-          recommendations: result.recommendations || [],
-          treatment: treatments.length > 0 ? treatments : ["No specific treatment data available"],
-          yield_impact: result.yield_impact || "Unknown impact",
-          spread_risk: result.spread_risk || "Medium",
-          recovery_chance: result.recovery_chance || "Medium"
-        };
-      } else {
-        throw apiError || new Error("All API keys failed");
-      }
-      
-    } catch (geminiError) {
-      console.warn("Gemini API analysis failed, using local fallback:", geminiError);
-      
-      // Enhanced fallback mechanism
-      const cropDisease = getCropDiseaseFromImageData(imageBase64);
-      console.log("Selected crop disease from local analysis:", cropDisease.name);
-      
-      // Determine crop type based on disease name
-      let cropType = "Unknown crop";
-      for (const [crop, diseases] of Object.entries(CROP_DISEASES)) {
-        if (crop === 'healthy') continue;
-        if ((diseases as any[]).some(d => d.name === cropDisease.name)) {
-          cropType = crop.charAt(0).toUpperCase() + crop.slice(1);
-          break;
-        }
-      }
-      
-      const severityMap: {[key: number]: string} = {
-        0: "Mild",
-        1: "Moderate", 
-        2: "Severe"
-      };
-      
-      const severityIndex = Math.floor(Math.random() * 3);
-      const yieldImpact = cropDisease.confidence > 85 ? "30-40%" : 
-                         cropDisease.confidence > 75 ? "20-30%" : "10-20%";
-      
-      const spreadRiskOptions = ["Low", "Medium", "High"];
-      const spreadRiskIndex = Math.floor(Math.random() * 3);
-      
-      const recoveryOptions = ["Low", "Medium", "High"];
-      const recoveryIndex = Math.min(2, Math.floor((100 - cropDisease.confidence) / 33));
-      
-      return {
-        disease_name: cropDisease.name,
-        crop_type: cropType,
-        confidence: cropDisease.confidence,
-        description: cropDisease.description,
-        severity: severityMap[severityIndex],
-        recommendations: cropDisease.recommendations,
-        treatment: cropDisease.treatment,
-        yield_impact: yieldImpact,
-        spread_risk: spreadRiskOptions[spreadRiskIndex],
-        recovery_chance: recoveryOptions[recoveryIndex]
-      };
     }
     
-  } catch (error: any) {
-    console.error("Analysis failed:", {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-    throw new Error(`Analysis failed: ${error.message}`);
-  }
-};
-
-// Analyze soil using Gemini
-export const analyzeSoil = async (imageBase64: string): Promise<{
-  soil_type: string;
-  confidence: number;
-  ph_level: string;
-  nutrients: { name: string; level: "Low" | "Medium" | "High"; recommendation: string }[];
-  recommendations: string[];
-}> => {
-  try {
-    console.log("Analyzing soil with Gemini...");
-    
-    const prompt = `Analyze this soil image. Provide:
-    - Soil type
-    - Confidence percentage (0-100)
-    - Estimated pH level
-    - Nutrient levels (Nitrogen, Phosphorus, Potassium)
-    - 3-5 recommendations for soil improvement
-    
-    Format response as JSON with these keys:
-    soil_type, confidence, ph_level, nutrients, recommendations`;
-
-    const imageParts = [
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: "image/jpeg"
-        }
-      }
-    ];
-
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const response = await result.response;
-    const text = response.text();
-    
-    let analysis;
-    try {
-      const jsonMatch = text.match(/\{[^{}]*\}/gs) || [];
-      if (jsonMatch.length === 0) {
-        throw new Error('No JSON found in response');
-      }
-      
-      let jsonStr = '';
-      for (const match of jsonMatch) {
-        try {
-          JSON.parse(match);
-          if (match.length > jsonStr.length) jsonStr = match;
-        } catch {
-          continue;
-        }
-      }
-      
-      if (!jsonStr) {
-        throw new Error('No valid JSON segments found');
-      }
-      
-      analysis = JSON.parse(jsonStr);
-      
-      if (!analysis.soil_type || !analysis.ph_level) {
-        throw new Error('Incomplete analysis data received');
-      }
-    } catch (error) {
-      console.error('Failed to parse analysis:', error);
-      throw new Error(`Analysis failed: ${error instanceof Error ? error.message : 'Invalid response format'}`);
-    }
-    
-    return {
-      soil_type: analysis.soil_type,
-      confidence: analysis.confidence,
-      ph_level: analysis.ph_level,
-      nutrients: analysis.nutrients,
-      recommendations: analysis.recommendations
-    };
+    // If we get here, all API keys failed
+    console.error("All API keys failed:", lastError);
+    return fallbackResult;
   } catch (error) {
-    console.error("Error in analyzeSoil:", error);
-    throw new Error("Failed to analyze soil image");
+    console.error("Error in plant disease analysis:", error);
+    return fallbackResult;
   }
 };
 
-// Predict yield based on various factors
-export const predictYield = async (
-  crop: string,
-  area: number,
-  soilType: string,
-  rainfall: number,
-  temperature: number,
-  disease: string | null = null
-): Promise<{
-  predictedYield: number;
-  yieldUnit: string;
-  confidence: number;
-  potentialIncome: number;
-  diseaseLossPercent: number | null;
-  recommendations: string[];
-}> => {
+// Store analysis data locally (in localStorage)
+export const storeAnalysisData = (data: any, type: string) => {
   try {
-    console.log("Predicting yield...");
+    // Create a unique ID for the analysis
+    const id = `${type}_${Date.now()}`;
     
-    let baseYield = area * (crop === "Rice" ? 4.5 : 
-                           crop === "Wheat" ? 3.8 : 
-                           crop === "Cotton" ? 2.1 : 
-                           crop === "Sugarcane" ? 70 : 
-                           crop === "Maize" ? 5.2 :
-                           crop === "Jute" ? 2.5 :
-                           crop === "Sesame" ? 0.8 :
-                           crop === "Groundnut" ? 1.7 :
-                           crop === "Bajra" ? 2.0 :
-                           crop === "Jowar" ? 1.8 : 3.0);
+    // Get existing history or initialize an empty array
+    const historyJSON = localStorage.getItem('analysis_history') || '[]';
+    const history = JSON.parse(historyJSON) as AnalysisData[];
     
-    const soilFactor = soilType === "Black Cotton Soil" ? 1.1 : 
-                       soilType === "Red Soil" ? 0.9 : 
-                       soilType === "Alluvial Soil" ? 1.2 : 1.0;
+    // Add the new analysis with metadata
+    const analysisData: AnalysisData = {
+      id,
+      timestamp: new Date().toISOString(),
+      type,
+      ...data
+    };
     
-    baseYield *= soilFactor;
+    // Add to history (at the beginning)
+    history.unshift(analysisData);
     
-    const rainfallFactor = rainfall < 500 ? 0.8 : 
-                          rainfall > 1200 ? 0.9 : 
-                          1.0 + ((rainfall - 500) / 1400);
+    // Limit history to 20 items to prevent localStorage from getting too large
+    const limitedHistory = history.slice(0, 20);
     
-    const tempFactor = temperature < 20 ? 0.85 : 
-                       temperature > 35 ? 0.8 : 
-                       1.0 + ((30 - Math.abs(temperature - 27)) / 100);
+    // Save back to localStorage
+    localStorage.setItem('analysis_history', JSON.stringify(limitedHistory));
     
-    baseYield *= rainfallFactor * tempFactor;
+    console.log(`Stored ${type} data with ID: ${id}`);
+    return id;
+  } catch (error) {
+    console.error("Error storing analysis data:", error);
+    return null;
+  }
+};
+
+// Get analysis history from localStorage
+export const getAnalysisHistory = (type?: string) => {
+  try {
+    const historyJSON = localStorage.getItem('analysis_history') || '[]';
+    const history = JSON.parse(historyJSON) as AnalysisData[];
     
-    let diseaseLossPercent = null;
-    if (disease) {
-      diseaseLossPercent = disease === "Leaf Blight" ? 15 : 
-                          disease === "Blast" ? 25 : 
-                          disease === "Rust" ? 20 : 10;
+    if (type) {
+      return history.filter(item => item.type === type);
+    }
+    
+    return history;
+  } catch (error) {
+    console.error("Error retrieving analysis history:", error);
+    return [];
+  }
+};
