@@ -1,13 +1,6 @@
 
 import { analyzeGitError, GitErrorAnalysisResult } from './services/geminiAIService';
 
-export interface GitErrorAnalysisResult {
-  error: string;
-  analysis: string;
-  suggestedCommands: string[];
-  confidence: number;
-}
-
 export const handleGitPushWithFallback = async (): Promise<{
   success: boolean;
   result?: GitErrorAnalysisResult;
@@ -24,12 +17,7 @@ export const handleGitPushWithFallback = async (): Promise<{
       const analysis = await analyzeGitError(error.message);
       return {
         success: false,
-        result: {
-          error: error.message,
-          analysis: analysis.analysis,
-          suggestedCommands: analysis.suggestedCommands,
-          confidence: analysis.confidence
-        }
+        result: analysis
       };
     }
     return { success: false };

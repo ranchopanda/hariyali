@@ -1,16 +1,13 @@
+
 import { useState } from 'react';
 import { handleGitPushWithFallback } from '../utils/gitWithGemini';
+import { GitErrorAnalysisResult } from '../utils/services/geminiAIService';
 
 export const GitIntegrationDemo = () => {
   const [isPushing, setIsPushing] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
-    result?: {
-      error: string;
-      analysis: string;
-      suggestedCommands: string[];
-      confidence: number;
-    };
+    result?: GitErrorAnalysisResult;
   } | null>(null);
 
   const handlePush = async () => {

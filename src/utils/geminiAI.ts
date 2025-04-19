@@ -5,11 +5,11 @@ export {
   analyzePlantDisease,
   analyzeSoil,
   analyzeGitError,
-  predictYield,
-  GitErrorAnalysisResult
+  predictYield
 } from './services/geminiAIService';
 export type { 
   AnalysisData,
   SoilAnalysisResult,
-  YieldPredictionResult 
-} from './types/analysisTypes';
+  YieldPredictionResult,
+  GitErrorAnalysisResult
+} from './services/geminiAIService';

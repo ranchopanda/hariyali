@@ -167,6 +167,7 @@ export const analyzeSoil = async (base64Image: string): Promise<SoilAnalysisResu
 };
 
 export interface GitErrorAnalysisResult {
+  error: string;
   analysis: string;
   suggestedCommands: string[];
   confidence: number;
@@ -181,6 +182,7 @@ export const analyzeGitError = async (errorMessage: string): Promise<GitErrorAna
     // Mock implementation for testing
     if (errorMessage.includes("remote rejected") || errorMessage.includes("behind")) {
       return {
+        error: errorMessage,
         analysis: "Your local branch is behind the remote branch. You need to pull the latest changes before pushing.",
         suggestedCommands: [
           "git pull origin main",
@@ -191,6 +193,7 @@ export const analyzeGitError = async (errorMessage: string): Promise<GitErrorAna
       };
     } else if (errorMessage.includes("conflict")) {
       return {
+        error: errorMessage,
         analysis: "There are merge conflicts that need to be resolved.",
         suggestedCommands: [
           "git status",
@@ -201,6 +204,7 @@ export const analyzeGitError = async (errorMessage: string): Promise<GitErrorAna
       };
     } else {
       return {
+        error: errorMessage,
         analysis: "This appears to be a generic Git error. Try checking your connection and repository status.",
         suggestedCommands: [
           "git status",
@@ -213,6 +217,7 @@ export const analyzeGitError = async (errorMessage: string): Promise<GitErrorAna
   } catch (error) {
     console.error("Error analyzing git error:", error);
     return {
+      error: errorMessage,
       analysis: "Unable to analyze the error. Please check your git status manually.",
       suggestedCommands: ["git status", "git remote -v"],
       confidence: 30
