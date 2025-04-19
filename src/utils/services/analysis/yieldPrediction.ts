@@ -1,4 +1,3 @@
-
 import { createGeminiModel, tryWithApiKeys } from '../helpers/geminiModelHelper';
 
 export interface YieldPredictionResult {
@@ -75,5 +74,6 @@ export const predictYield = async (
     confidence: 0,
     potentialIncome: 0,
     recommendations: ["Unable to generate prediction. Please try again."],
+    diseaseLossPercent: 0
   });
 };
