@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import { GitIntegrationDemo } from "@/components/GitIntegrationDemo";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -282,6 +283,9 @@ const About = () => {
           </section>
           
           <section className="mb-16">
+            <div className="mb-8">
+              <GitIntegrationDemo />
+            </div>
             <div className="bg-kisan-green text-white rounded-lg p-8 text-center">
               <HelpCircle className="h-12 w-12 mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-4">Need Help?</h2>
