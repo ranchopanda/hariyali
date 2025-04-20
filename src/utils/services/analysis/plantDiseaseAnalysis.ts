@@ -37,19 +37,32 @@ export const analyzePlantDisease = async (base64Image: string): Promise<Analysis
     const prompt = `
 You are PlantDoctorAI, an expert agricultural system specializing in plant disease detection.
 
-Analyze this plant image and provide a detailed disease assessment in JSON format with these fields:
-- disease_name: The full scientific name of the disease and pathogen
-- confidence: A number from 0-100 representing your confidence level
-- description: A detailed description of the visual symptoms
-- treatment: An array of 3-5 treatment options
-- recommendations: An array of 5-6 preventive measures
-- severity: "Mild", "Moderate", or "Severe"
-- crop_type: The plant species affected
-- yield_impact: Estimated impact on crop yield
-- spread_risk: "Low", "Medium", or "High" risk of spreading
-- recovery_chance: "Low", "Medium", or "High" chance of recovery
+Analyze this plant image carefully and provide a detailed disease assessment in JSON format.
 
-Format your response as a valid JSON object with these exact fields.`;
+First, identify the plant type and examine the visual symptoms.
+Look for discoloration, spots, wilting, lesions, and other indicators of disease.
+Consider common diseases that affect this specific plant species.
+
+Provide your analysis in this exact JSON format:
+{
+  "disease_name": "Full scientific name of the disease",
+  "confidence": number between 0-100,
+  "description": "Detailed description of symptoms and disease characteristics",
+  "treatment": [
+    "3-5 specific treatment options in order of effectiveness"
+  ],
+  "recommendations": [
+    "5-6 specific preventive measures and best practices"
+  ],
+  "severity": "Mild/Moderate/Severe",
+  "crop_type": "Scientific name of the plant species",
+  "yield_impact": "Estimated effect on crop yield",
+  "spread_risk": "Low/Medium/High risk of disease spreading",
+  "recovery_chance": "Low/Medium/High chance of plant recovery"
+}
+
+Be specific, accurate, and base your assessment on established plant pathology knowledge.
+If you're uncertain, provide your best estimate but indicate a lower confidence score.`;
 
     const result = await model.generateContent([
       prompt,
@@ -63,9 +76,37 @@ Format your response as a valid JSON object with these exact fields.`;
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (jsonMatch && jsonMatch[1]) {
       jsonStr = jsonMatch[1].trim();
+    } else {
+      // Try simple JSON extraction if no code blocks found
+      const simpleMatch = text.match(/\{[\s\S]*\}/);
+      if (simpleMatch) {
+        jsonStr = simpleMatch[0];
+      }
     }
     
-    const parsedResult = { ...FALLBACK_RESULT, ...JSON.parse(jsonStr) };
-    return parsedResult;
+    try {
+      const parsedData = JSON.parse(jsonStr);
+      
+      // Validate the data structure and provide defaults for missing fields
+      const validatedResult: AnalysisData = {
+        ...FALLBACK_RESULT,
+        disease_name: parsedData.disease_name || FALLBACK_RESULT.disease_name,
+        confidence: typeof parsedData.confidence === 'number' ? parsedData.confidence : FALLBACK_RESULT.confidence,
+        description: parsedData.description || FALLBACK_RESULT.description,
+        treatment: Array.isArray(parsedData.treatment) ? parsedData.treatment : FALLBACK_RESULT.treatment,
+        recommendations: Array.isArray(parsedData.recommendations) ? parsedData.recommendations : FALLBACK_RESULT.recommendations,
+        severity: ['Mild', 'Moderate', 'Severe'].includes(parsedData.severity) ? parsedData.severity : FALLBACK_RESULT.severity,
+        crop_type: parsedData.crop_type || FALLBACK_RESULT.crop_type,
+        yield_impact: parsedData.yield_impact || FALLBACK_RESULT.yield_impact,
+        spread_risk: ['Low', 'Medium', 'High'].includes(parsedData.spread_risk) ? parsedData.spread_risk : FALLBACK_RESULT.spread_risk,
+        recovery_chance: ['Low', 'Medium', 'High'].includes(parsedData.recovery_chance) ? parsedData.recovery_chance : FALLBACK_RESULT.recovery_chance
+      };
+      
+      return validatedResult;
+    } catch (error) {
+      console.error("Error parsing JSON response:", error);
+      console.log("Raw response text:", text);
+      return FALLBACK_RESULT;
+    }
   }, FALLBACK_RESULT);
 };

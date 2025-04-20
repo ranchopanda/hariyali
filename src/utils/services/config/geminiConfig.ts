@@ -2,7 +2,7 @@
 import { HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 export const API_KEYS = [
-  "YOUR_API_KEY_1", // Replace with actual API keys
+  "AIzaSyAnxLXZytFZA-gUYL4Nu8pfIvqcGwHetFU", // User provided API key
   "YOUR_API_KEY_2",
   "YOUR_API_KEY_3",
 ];

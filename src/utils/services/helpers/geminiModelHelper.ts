@@ -7,6 +7,12 @@ export const createGeminiModel = (apiKey: string) => {
   return genAI.getGenerativeModel({ 
     model: "gemini-1.5-pro",
     safetySettings: SAFETY_SETTINGS,
+    generationConfig: {
+      temperature: 0.4,
+      topP: 0.8,
+      topK: 40,
+      maxOutputTokens: 2048,
+    }
   });
 };
 
