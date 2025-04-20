@@ -31,11 +31,31 @@ export interface YieldPredictionResult {
   recommendations: string[];
 }
 
+// New interface for Pest and Weed Detection (coming soon)
+export interface PestWeedDetectionResult {
+  pest_or_weed_name: string;
+  type: 'Pest' | 'Weed';
+  severity_level: 'Low' | 'Moderate' | 'High';
+  confidence: number;
+  affected_crop: string;
+  symptoms: string[];
+  control_methods: {
+    organic: string[];
+    chemical: string[];
+    preventive: string[];
+  };
+  lifecycle_stage: string;
+  recommendations: string[];
+  faqs: { question: string; answer: string }[];
+  pro_tips: string[];
+  rescan_reminder?: number;
+}
+
 export interface AnalysisHistoryItem {
   id: string;
   type: string;
   timestamp: string;
-  data: DiseaseDetectionResult | SoilAnalysisResult | YieldPredictionResult;
+  data: DiseaseDetectionResult | SoilAnalysisResult | YieldPredictionResult | PestWeedDetectionResult;
 }
 
 export interface AnalysisResult {
@@ -742,3 +762,15 @@ export const getAnalysisHistory = (type: string): AnalysisHistoryItem[] => {
     return [];
   }
 };
+
+// Export helper functions
+export { imageToBase64 } from './helpers/imageUtils';
+export { storeAnalysisData, getAnalysisHistory } from './storage/analysisStorage';
+export { 
+  analyzePlantDisease,
+  analyzeSoil,
+  predictYield,
+  DiseaseDetectionResult,
+  SoilAnalysisResult,
+  YieldPredictionResult
+} from './services/geminiAIService';

@@ -59,17 +59,19 @@ export const requestCameraAccess = async (): Promise<MediaStream> => {
       if (error.name === 'NotAllowedError') {
         throw new Error("Camera access was denied. Please allow camera access in your browser settings and try again.");
       } else if (error.name === 'NotFoundError') {
-        throw new Error("No camera found on your device. Please make sure your device has a working camera.");
+        throw new Error("No camera found on your device. Please connect a camera and try again.");
       } else if (error.name === 'NotReadableError') {
-        throw new Error("Your camera is already in use by another application. Please close other apps using the camera.");
+        throw new Error("Your camera is already in use by another application. Please close other apps using the camera and try again.");
       } else if (error.name === 'OverconstrainedError') {
-        throw new Error("Your camera doesn't meet the required specifications. Please try a different camera.");
+        throw new Error("Your camera doesn't meet the required constraints. Please try a different camera.");
       } else if (error.name === 'TypeError') {
-        throw new Error("Camera API error. Please try a different browser or device.");
+        throw new Error("Invalid camera constraints. Please try again.");
+      } else {
+        throw new Error(`Camera access error: ${error.message}`);
       }
     }
     
-    throw new Error("Failed to access camera. Please check your camera permissions and try again.");
+    throw new Error("An unknown error occurred while accessing the camera.");
   }
 };
 

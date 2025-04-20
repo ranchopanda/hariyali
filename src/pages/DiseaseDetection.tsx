@@ -22,9 +22,15 @@ import {
 interface DetectionResult {
   disease_name: string;
   confidence: number;
-  description: string;
-  recommendations: string[];
-  treatment: string[];
+  crop_name: string;
+  pathogen: string;
+  severity_level: 'High' | 'Moderate' | 'Low';
+  symptoms: string[];
+  action_plan: string[];
+  organic_treatment: string[];
+  chemical_treatment: string[];
+  faqs: { question: string; answer: string }[];
+  pro_tips: string[];
   rescan_reminder?: number;
 }
 
@@ -950,7 +956,7 @@ const DiseaseDetection = () => {
                     
                     <div className="space-y-4">
                       {getAnalysisHistory("disease_detection").map((item: AnalysisHistoryItem) => {
-                        const diseaseData = item.data as DiseaseDetectionResult;
+                        const diseaseData = item.data as DetectionResult;
                         if (!diseaseData || !diseaseData.disease_name) {
                           return null; // Skip invalid items
                         }
