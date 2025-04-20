@@ -1,7 +1,6 @@
-
 import { useNavigate } from "react-router-dom";
 import FeatureCard from "@/components/FeatureCard";
-import { Camera, Cloud, BookOpen, LineChart, Sprout, MessageSquare } from "lucide-react";
+import { Camera, Cloud, BookOpen, LineChart, Sprout, MessageSquare, Stethoscope } from "lucide-react";
 
 const FeaturesSection = () => {
   const navigate = useNavigate();
@@ -52,6 +51,13 @@ const FeaturesSection = () => {
             description="Recommendations for soil health improvement and appropriate fertilizers by capturing soil images."
             icon={<Sprout className="h-7 w-7 text-kisan-green dark:text-kisan-gold" />}
             onClick={() => navigate('/soil-analysis')}
+          />
+          
+          <FeatureCard
+            title="Treatment Optimizer"
+            description="Get personalized treatment plans and dosage recommendations for plant diseases based on severity and crop type."
+            icon={<Stethoscope className="h-7 w-7 text-kisan-green dark:text-kisan-gold" />}
+            onClick={() => navigate('/treatment-optimizer')}
           />
           
           <FeatureCard

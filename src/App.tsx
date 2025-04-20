@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,8 @@ import NotFound from "./pages/NotFound";
 import SuccessStories from "./pages/SuccessStories";
 import YieldPrediction from "./pages/YieldPrediction";
 import SoilAnalysis from "./pages/SoilAnalysis";
+import CameraTest from "./pages/CameraTest";
+import TreatmentOptimizer from "./pages/TreatmentOptimizer";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,8 @@ const App = () => (
           <Route path="/success-stories" element={<SuccessStories />} />
           <Route path="/yield-prediction" element={<YieldPrediction />} />
           <Route path="/soil-analysis" element={<SoilAnalysis />} />
+          <Route path="/camera-test" element={<CameraTest />} />
+          <Route path="/treatment-optimizer" element={<TreatmentOptimizer />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

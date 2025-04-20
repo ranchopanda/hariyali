@@ -40,9 +40,61 @@ interface WeatherData {
     };
     weather: string;
     weather_icon: string;
-    precipitation: number;
+    precipitation: {
+      probability: number;
+      amount: number;
+    };
   }>;
   agricultural_advice: Array<string>;
+}
+
+// Define interfaces for weather data
+interface CurrentWeather {
+  main: {
+    temp: number;
+    feels_like: number;
+    humidity: number;
+  };
+  weather: Array<{
+    main: string;
+    icon: string;
+  }>;
+  wind: {
+    speed: number;
+  };
+}
+
+interface ForecastItem {
+  dt: number;
+  main: {
+    temp: number;
+    temp_min: number;
+    temp_max: number;
+  };
+  weather: Array<{
+    main: string;
+    icon: string;
+  }>;
+  pop: number; // Probability of precipitation
+  precipitation: {
+    probability: number;
+    amount: number;
+  };
+}
+
+interface ProcessedForecastItem {
+  date: string;
+  day: string;
+  temperature: {
+    min: number;
+    max: number;
+  };
+  weather: string;
+  weather_icon: string;
+  precipitation: {
+    probability: number;
+    amount: number;
+  };
 }
 
 const Weather = () => {
@@ -53,7 +105,7 @@ const Weather = () => {
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const OPENWEATHER_API_KEY = "d67c7a5ae631afb152c40991e9046eb4";
+  const OPENWEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
@@ -195,7 +247,10 @@ const Weather = () => {
             },
             weather: "Partly Cloudy",
             weather_icon: "cloud",
-            precipitation: 20
+            precipitation: {
+              probability: 20,
+              amount: 0
+            }
           },
           {
             date: "2025-04-05",
@@ -206,7 +261,10 @@ const Weather = () => {
             },
             weather: "Mostly Sunny",
             weather_icon: "sun",
-            precipitation: 10
+            precipitation: {
+              probability: 10,
+              amount: 0
+            }
           },
           {
             date: "2025-04-06",
@@ -217,7 +275,10 @@ const Weather = () => {
             },
             weather: "Sunny",
             weather_icon: "sun",
-            precipitation: 5
+            precipitation: {
+              probability: 5,
+              amount: 0
+            }
           },
           {
             date: "2025-04-07",
@@ -228,7 +289,10 @@ const Weather = () => {
             },
             weather: "Chance of Rain",
             weather_icon: "cloud-rain",
-            precipitation: 40
+            precipitation: {
+              probability: 40,
+              amount: 2.5
+            }
           },
           {
             date: "2025-04-08",
@@ -239,7 +303,10 @@ const Weather = () => {
             },
             weather: "Rain",
             weather_icon: "cloud-rain",
-            precipitation: 70
+            precipitation: {
+              probability: 70,
+              amount: 8.5
+            }
           }
         ],
         agricultural_advice: [
@@ -264,7 +331,11 @@ const Weather = () => {
     }
   };
 
-  const processWeatherData = (location: string, current: any, forecast: any): WeatherData => {
+  const processWeatherData = (
+    location: string, 
+    current: CurrentWeather, 
+    forecast: ForecastItem[]
+  ): WeatherData => {
     const currentWeather = {
       temperature: Math.round(current.main.temp),
       feels_like: Math.round(current.main.feels_like),
@@ -274,28 +345,27 @@ const Weather = () => {
       weather_icon: getWeatherIconName(current.weather[0].icon)
     };
     
-    const processedForecast: any[] = [];
+    const processedForecast: ProcessedForecastItem[] = [];
     const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
     const days = new Set<string>();
     const dailyMin: { [key: string]: number } = {};
     const dailyMax: { [key: string]: number } = {};
     const dailyWeather: { [key: string]: { icon: string, main: string } } = {};
-    const dailyPrecipitation: { [key: string]: number } = {};
+    const dailyPrecipitation: { [key: string]: { probability: number, amount: number } } = {};
     
-    forecast.list.forEach((item: any) => {
-      const date = item.dt_txt.split(' ')[0];
+    forecast.forEach((item: ForecastItem) => {
+      const date = new Date(item.dt * 1000).toISOString().split('T')[0];
       days.add(date);
       
-      const temp = item.main.temp;
-      if (!dailyMin[date] || temp < dailyMin[date]) {
-        dailyMin[date] = temp;
+      if (!dailyMin[date] || item.main.temp_min < dailyMin[date]) {
+        dailyMin[date] = item.main.temp_min;
       }
-      if (!dailyMax[date] || temp > dailyMax[date]) {
-        dailyMax[date] = temp;
+      if (!dailyMax[date] || item.main.temp_max > dailyMax[date]) {
+        dailyMax[date] = item.main.temp_max;
       }
       
-      const hour = parseInt(item.dt_txt.split(' ')[1].split(':')[0]);
+      const hour = parseInt(new Date(item.dt * 1000).toISOString().split('T')[1].split(':')[0]);
       if (hour >= 12 && hour <= 15 || !dailyWeather[date]) {
         dailyWeather[date] = {
           icon: getWeatherIconName(item.weather[0].icon),
@@ -303,9 +373,16 @@ const Weather = () => {
         };
       }
       
-      const pop = item.pop * 100;
-      if (!dailyPrecipitation[date] || pop > dailyPrecipitation[date]) {
-        dailyPrecipitation[date] = pop;
+      const probability = item.pop * 100;
+      const amount = item.precipitation.amount || 0;
+      
+      if (!dailyPrecipitation[date]) {
+        dailyPrecipitation[date] = { probability, amount };
+      } else {
+        if (probability > dailyPrecipitation[date].probability) {
+          dailyPrecipitation[date].probability = probability;
+        }
+        dailyPrecipitation[date].amount += amount;
       }
     });
     
@@ -322,11 +399,14 @@ const Weather = () => {
         },
         weather: dailyWeather[date].main,
         weather_icon: dailyWeather[date].icon,
-        precipitation: Math.round(dailyPrecipitation[date])
+        precipitation: {
+          probability: Math.round(dailyPrecipitation[date].probability),
+          amount: Math.round(dailyPrecipitation[date].amount * 10) / 10 // Round to 1 decimal place
+        }
       });
     });
     
-    const agriculturalAdvice = generateAgricultureAdvice(currentWeather, processedForecast);
+    const agriculturalAdvice = generateAgricultureAdvice(current, forecast);
     
     const state = "";
     
@@ -364,27 +444,30 @@ const Weather = () => {
     return iconMap[iconCode] || 'cloud';
   };
 
-  const generateAgricultureAdvice = (current: any, forecast: any[]): string[] => {
+  const generateAgricultureAdvice = (
+    current: CurrentWeather, 
+    forecast: ForecastItem[]
+  ): string[] => {
     const advice: string[] = [];
     
-    if (current.temperature > 35) {
+    if (current.main.temp > 35) {
       advice.push("High temperatures expected: Ensure adequate irrigation for crops, preferably during early morning or evening.");
-    } else if (current.temperature < 15) {
+    } else if (current.main.temp < 15) {
       advice.push("Cool temperatures expected: Consider protecting temperature-sensitive crops with covers during night time.");
     }
     
-    if (current.humidity > 70) {
+    if (current.main.humidity > 70) {
       advice.push("Humidity levels favorable for fungal diseases in vegetables. Monitor crops closely and ensure proper spacing for air circulation.");
-    } else if (current.humidity < 30) {
+    } else if (current.main.humidity < 30) {
       advice.push("Low humidity may increase water requirements. Adjust irrigation schedule accordingly.");
     }
     
-    const rainDays = forecast.filter(day => day.precipitation > 40);
+    const rainDays = forecast.filter(day => day.pop > 0.4 || day.precipitation.amount > 5);
     if (rainDays.length > 0) {
-      advice.push(`Chance of rain in the coming days: Consider postponing any planned pesticide application until after rainfall.`);
+      advice.push(`Chance of significant rainfall in the coming days: Consider postponing any planned pesticide application until after rainfall.`);
     }
     
-    if (current.wind_speed > 15) {
+    if (current.wind.speed > 15) {
       advice.push("Strong winds expected: Provide support for tall crops like maize and sugarcane to prevent lodging.");
     }
     
@@ -592,8 +675,13 @@ const Weather = () => {
                                 Precipitation
                               </div>
                               <div className="font-medium">
-                                {day.precipitation}%
+                                {day.precipitation.probability}%
                               </div>
+                              {day.precipitation.amount > 0 && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {day.precipitation.amount}mm
+                                </div>
+                              )}
                             </div>
                             <div className="w-20 sm:w-24 text-right">
                               <span className="font-medium">{day.temperature.max}°</span>
@@ -640,7 +728,7 @@ const Weather = () => {
   );
 };
 
-function Sprout(props: any) {
+function Sprout(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}

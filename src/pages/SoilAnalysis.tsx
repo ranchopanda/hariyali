@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -17,20 +16,10 @@ import {
   analyzeSoil, 
   imageToBase64, 
   storeAnalysisData, 
-  getAnalysisHistory 
+  getAnalysisHistory,
+  SoilAnalysisResult,
+  AnalysisHistoryItem
 } from "@/utils/geminiAI";
-
-interface SoilAnalysisResult {
-  soil_type: string;
-  confidence: number;
-  ph_level: string;
-  nutrients: {
-    name: string;
-    level: "Low" | "Medium" | "High";
-    recommendation: string;
-  }[];
-  recommendations: string[];
-}
 
 const SoilAnalysis = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -105,11 +94,11 @@ const SoilAnalysis = () => {
       // Store the result
       await storeAnalysisData(analysisResult, "soil_analysis");
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error analyzing image:", error);
       toast({
         title: "Analysis Failed",
-        description: "There was an error analyzing the soil image. Please try again with a clearer image.",
+        description: error instanceof Error ? error.message : "There was an error analyzing the soil image. Please try again with a clearer image.",
         variant: "destructive",
       });
     } finally {
@@ -402,24 +391,27 @@ const SoilAnalysis = () => {
                       <h3 className="text-lg font-semibold">Previous Soil Analyses</h3>
                       
                       <div className="space-y-4">
-                        {getAnalysisHistory("soil_analysis").map((item: any) => (
-                          <div 
-                            key={item.id}
-                            className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium">{item.soil_type}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  pH: {item.ph_level} • {new Date(item.timestamp).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div className="text-sm px-2 py-1 bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">
-                                {item.confidence}% match
+                        {getAnalysisHistory("soil_analysis").map((item: AnalysisHistoryItem) => {
+                          const soilData = item.data as SoilAnalysisResult;
+                          return (
+                            <div 
+                              key={item.id}
+                              className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h4 className="font-medium">{soilData.soil_type}</h4>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Confidence: {soilData.confidence}%
+                                  </p>
+                                </div>
+                                <div className="text-sm px-2 py-1 bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">
+                                  {soilData.confidence}% match
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (

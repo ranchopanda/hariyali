@@ -1,0 +1,17 @@
+{
+  "production": {
+    "basePath": "/plant-disease-detection",
+    "cacheControl": {
+      "assets": "public, max-age=31536000, immutable",
+      "html": "public, max-age=3600"
+    },
+    "performance": {
+      "monitoringEndpoint": "/api/health",
+      "samplingRate": 0.1
+    },
+    "resources": {
+      "modelFiles": "cdn/static/models",
+      "maxBundleSize": "500KB" 
+    }
+  }
+}

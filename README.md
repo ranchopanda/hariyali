@@ -1,73 +1,78 @@
-# Welcome to your Lovable project
+# Kisan Krishi Dost AI
 
-## Project info
+A comprehensive AI-powered farming assistant application for Indian farmers.
 
-**URL**: https://lovable.dev/projects/7a9dff42-41ee-4674-9ff4-760a6c05ccb8
+## Features
 
-## How can I edit this code?
+- **Disease Detection**: Upload images of plant diseases for AI-powered diagnosis and treatment recommendations
+- **Weather Forecast**: Get accurate weather forecasts for your location
+- **Crop Information**: Access detailed information about various crops
+- **Soil Analysis**: Analyze soil samples for nutrient content and recommendations
+- **Yield Prediction**: Predict crop yields based on historical data and current conditions
 
-There are several ways of editing your application.
+## Technologies Used
 
-**Use Lovable**
+- React with TypeScript
+- Vite for fast development and building
+- Shadcn UI for beautiful components
+- Gemini AI for plant disease detection
+- OpenWeather API for weather forecasts
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7a9dff42-41ee-4674-9ff4-760a6c05ccb8) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js (v14 or higher)
+- npm or yarn
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/kisan-krishi-dost-ai.git
+   cd kisan-krishi-dost-ai
+   ```
 
-Follow these steps:
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. Create a `.env` file in the root directory with the following variables:
+   ```
+   VITE_OPENWEATHER_API_KEY=your_openweather_api_key_here
+   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+4. Start the development server:
+   ```
+   npm run dev
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+5. Open your browser and navigate to `http://localhost:8080`
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Deployment
 
-**Edit a file directly in GitHub**
+### Deploying to Netlify
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Build the project:
+   ```
+   npm run build
+   ```
 
-**Use GitHub Codespaces**
+2. Deploy to Netlify:
+   ```
+   netlify deploy
+   ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+3. Follow the prompts to complete the deployment.
 
-## What technologies are used for this project?
+## License
 
-This project is built with:
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Acknowledgments
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/7a9dff42-41ee-4674-9ff4-760a6c05ccb8) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- Gemini AI for providing the plant disease detection API
+- OpenWeather for providing the weather forecast API
+- All contributors who have helped with the development of this project
